@@ -1,0 +1,30 @@
+[package]
+description = "A powerful browser crawler for web vulnerability scanners"
+name = "Demon"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/baerwang/Demon"
+publish = false
+
+[profile.release]
+debug = false
+strip = true
+
+[profile.release-prod]
+inherits = "release"
+codegen-units = 1
+lto = "thin"
+
+[profile.release-profiling]
+inherits = "release"
+debug = true
+strip = false
+codegen-units = 4
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.10"
+rust-headless-chrome = "1.0.8"
+
