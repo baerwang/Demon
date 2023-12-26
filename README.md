@@ -7,7 +7,7 @@ Daemon is a browser crawler that does URL harvesting in chrome headless mode
 - [ ] Robots
 - [ ] Javascript Content
 - [ ] Custom Headers
-- [ ] Proxy
+- [x] Proxy
 - [ ] Form
 - [ ] Click
 - [ ] Auto Random filling

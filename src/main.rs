@@ -1,3 +1,5 @@
+use demon::cli::cmd;
+
 fn main() {
-    println!("Hello, world!");
+    _ = cmd::cli()
 }
