@@ -45,6 +45,11 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .get_matches();
 
+    let buf = std::env::current_dir()
+        .unwrap()
+        .join("files/user_agent.toml");
+    std::env::set_var("user_agent", buf);
+
     if app.subcommand().is_none() {
         return crawler::browse_wikipedia(LaunchOptions::default());
     }
