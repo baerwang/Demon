@@ -4,7 +4,7 @@ use headless_chrome::LaunchOptions;
 
 use crate::handler::crawler;
 
-pub fn chromium_args() -> impl IntoIterator<Item=impl Into<clap::Arg>> {
+pub fn chromium_args() -> impl IntoIterator<Item = impl Into<clap::Arg>> {
     [
         clap::Arg::new("path").long("chromium-path").alias("path")
             .help("Path for Chrome or Chromium."),
@@ -25,12 +25,12 @@ pub fn chromium_args() -> impl IntoIterator<Item=impl Into<clap::Arg>> {
     ]
 }
 
-pub fn web_args() -> impl IntoIterator<Item=impl Into<clap::Arg>> {
-    [
-        clap::Arg::new("port").long("port").alias("port")
-            .default_value("9999")
-            .help("Start Port"),
-    ]
+pub fn web_args() -> impl IntoIterator<Item = impl Into<clap::Arg>> {
+    [clap::Arg::new("port")
+        .long("port")
+        .alias("port")
+        .default_value("9999")
+        .help("Start Port")]
 }
 
 pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,8 +38,10 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
         .version(clap::crate_version!())
         .about(clap::crate_description!())
         .subcommands(&[
-            clap::Command::new("chromium").args(chromium_args()).about("chromium setup"),
-            clap::Command::new("web").args(web_args()).about("web UI")
+            clap::Command::new("chromium")
+                .args(chromium_args())
+                .about("chromium setup"),
+            clap::Command::new("web").args(web_args()).about("web UI"),
         ])
         .get_matches();
 
@@ -60,8 +62,10 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
             let proxy = command.get_one::<String>("proxy").map(|h| h.as_str());
             let headless = default_bool(command.clone(), "headless");
             let sandbox = default_bool(command.clone(), "sandbox");
-            let ignore_certificate_errors = default_bool(command.clone(), "ignore_certificate_errors");
-            let user_data_dir = command.get_one::<String>("user_data_dir")
+            let ignore_certificate_errors =
+                default_bool(command.clone(), "ignore_certificate_errors");
+            let user_data_dir = command
+                .get_one::<String>("user_data_dir")
                 .map(|h| std::path::PathBuf::from(h.parse::<String>().unwrap()));
 
             let launch_options = LaunchOptions::default_builder()
@@ -82,7 +86,8 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn default_bool(command: clap::ArgMatches, key: &str) -> bool {
-    command.get_one::<String>(key)
+    command
+        .get_one::<String>(key)
         .map(|h| h.parse::<bool>().unwrap_or(true))
         .unwrap_or(true)
 }
