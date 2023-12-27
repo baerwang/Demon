@@ -1,19 +1,33 @@
 use headless_chrome::{Browser, LaunchOptions};
 
-use crate::common;
+use crate::{common, model};
 
-pub fn browse_wikipedia(launch_options: LaunchOptions) -> Result<(), Box<dyn std::error::Error>> {
+pub fn browse_wikipedia(
+    config: model::task::TaskConfig,
+    launch_options: LaunchOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::new(launch_options)?;
-    let tab = browser.new_tab()?;
-    let random_ug = common::user_agent::random_user_agent();
-    tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
-    tab.navigate_to("https://example.com")?;
-    let h1 = tab.wait_for_xpath("/html/body/div/h1")?;
-    assert_eq!(h1.get_inner_text().unwrap().as_str(), "Example Domain");
-    let ug = tab
-        .evaluate("window.navigator.userAgent", false)?
-        .value
+    for item in &config.target {
+        let tab = browser.new_tab()?;
+        let random_ug = common::user_agent::random_user_agent();
+        tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
+        tab.navigate_to(item)?;
+        tab.set_extra_http_headers(
+            config
+                .headers
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect(),
+        )
         .unwrap();
-    assert_eq!(random_ug, ug);
+        let h1 = tab.wait_for_xpath("/html/body/div/h1")?;
+        assert_eq!(h1.get_inner_text().unwrap().as_str(), "Example Domain");
+        let ug = tab
+            .evaluate("window.navigator.userAgent", false)?
+            .value
+            .unwrap();
+        assert_eq!(random_ug, ug);
+    }
+
     Ok(())
 }

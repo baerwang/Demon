@@ -1,12 +1,32 @@
+use std::collections::HashMap;
+
 use anyhow::anyhow;
 use headless_chrome::browser::default_executable;
 use headless_chrome::LaunchOptions;
 
 use crate::handler::crawler;
+use crate::model;
+
+pub fn demon_args() -> impl IntoIterator<Item = impl Into<clap::Arg>> {
+    [
+        clap::Arg::new("target")
+            .long("target")
+            .alias("target")
+            .action(clap::ArgAction::Set)
+            .num_args(0..)
+            .help("Custom Http Headers"),
+        clap::Arg::new("custom-headers")
+            .long("custom-headers")
+            .alias("custom-headers")
+            .action(clap::ArgAction::Set)
+            .num_args(0..)
+            .help("Custom Http Headers"),
+    ]
+}
 
 pub fn chromium_args() -> impl IntoIterator<Item = impl Into<clap::Arg>> {
     [
-        clap::Arg::new("path").long("chromium-path").alias("path")
+        clap::Arg::new("path").long("path").alias("path")
             .help("Path for Chrome or Chromium."),
         clap::Arg::new("headless").long("headless").alias("headless")
             .default_value("true")
@@ -37,6 +57,7 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
     let app = clap::Command::new("demon")
         .version(clap::crate_version!())
         .about(clap::crate_description!())
+        .args(demon_args())
         .subcommands(&[
             clap::Command::new("chromium")
                 .args(chromium_args())
@@ -45,23 +66,53 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
         ])
         .get_matches();
 
+    let headers: HashMap<_, _> = app
+        .get_many::<String>("custom-headers")
+        .unwrap_or_default()
+        .map(|pair| {
+            let mut iter = pair.split(':');
+            let key = iter.next().expect("No key found");
+            let value = iter.next().expect("No value found");
+            (key.to_string(), value.to_string())
+        })
+        .collect();
+
+    let chromium_path = Some(default_executable().map_err(|e| anyhow!(e))?);
+
+    let target = app
+        .get_many::<String>("target")
+        .expect("target not allow empty")
+        .map(|s| s.to_string())
+        .collect();
+
+    let config = model::task::TaskConfig {
+        target,
+        headers,
+        robots: false,
+        range: 0,
+        repeat: 0,
+    };
+
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
+
     let buf = std::env::current_dir()
         .unwrap()
         .join("files/user_agent.toml");
     std::env::set_var("user_agent", buf);
 
     if app.subcommand().is_none() {
-        return crawler::browse_wikipedia(LaunchOptions::default());
+        let launch_options = LaunchOptions::default_builder()
+            .path(chromium_path)
+            .build()?;
+        return crawler::browse_wikipedia(config, launch_options);
     }
-
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
 
     let (name, command) = app.subcommand().unwrap();
     match name {
         "chromium" => {
             let path = match command.get_one::<String>("path") {
                 Some(h) => Some(std::path::PathBuf::from(h.parse::<String>().unwrap())),
-                None => Some(default_executable().map_err(|e| anyhow!(e))?),
+                None => chromium_path,
             };
 
             let proxy = command.get_one::<String>("proxy").map(|h| h.as_str());
@@ -82,7 +133,7 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 .user_data_dir(user_data_dir)
                 .build()?;
 
-            crawler::browse_wikipedia(launch_options)
+            crawler::browse_wikipedia(config, launch_options)
         }
         _ => {
             panic!("The current feature is not implemented or {name} does not exist")
