@@ -1,0 +1,21 @@
+phone_prefix = ["135", "136", "138"]
+
+names = ["龚", "王", "李", "张", "刘", "陈", "杨", "⻩", "周", "赵", "吴", "孙", "徐", "林", "胡", "朱", "郭", "梁", "⻢", "⾼", "何"]
+
+surnames = ["娜", "敏", "静", "丽", "强", "磊", "洋", "军", "杰", "芳", "勇", "睿", "宇", "翔", "宥", "品", "彤", "希", "晴"]
+
+names_en = [
+    "gong", "wang", "li", "zhang", "liu", "chen", "yang", "huang",
+    "zhou", "zhao", "wu", "sun", "xu", "lin", "hu", "zhu",
+    "guo", "liang", "ma", "gao", "he"
+]
+
+surnames_en = [
+    "na", "min", "jing", "li", "qiang", "lei", "yang",
+    "jun", "jie", "fang", "yong", "rui", "yu", "xiang",
+    "you", "pin", "tong", "xi", "qing"
+]
+
+email_suffix = [
+    "@gmail", "@126.com", "@163.com", "@qq.com"
+]

@@ -1,10 +1,9 @@
 use rand::prelude::SliceRandom;
 
-use crate::common;
-use crate::common::{CHROME_VERSIONS, EDGE_VERSIONS, FF_VERSIONS, OS_STRINGS};
+use crate::common::constant::{CHROME_VERSIONS, EDGE_VERSIONS, FF_VERSIONS, OS_STRINGS, UA_GENS};
 
 pub fn random_user_agent() -> String {
-    common::UA_GENS.choose(&mut rand::thread_rng()).unwrap()()
+    UA_GENS.choose(&mut rand::thread_rng()).unwrap()()
 }
 
 pub fn gen_firefox_ua() -> String {

@@ -5,12 +5,12 @@ use clap::Parser;
 use headless_chrome::browser::default_executable;
 use headless_chrome::LaunchOptions;
 
-use crate::cli::Opt;
+use crate::cli::args;
 use crate::handler::crawler;
-use crate::{cli, model};
+use crate::model;
 
 pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
-    let app = cli::DemonCmd::parse();
+    let app = args::CLi::parse();
     let headers: HashMap<_, _> = app
         .custom_headers
         .iter()
@@ -47,7 +47,7 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     match app.opt {
-        Some(Opt::Chromium(c)) => {
+        Some(args::Opt::Chromium(c)) => {
             let chromium_path = Some(c.path.unwrap_or(chromium_path));
             let proxy = Some(c.proxy.as_deref().unwrap_or_default());
             let launch_options = LaunchOptions::default_builder()

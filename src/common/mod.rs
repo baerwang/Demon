@@ -1,55 +1,17 @@
 use std::fs;
 
-use once_cell::sync::Lazy;
 use toml::Value;
 
-use crate::common::user_agent::{gen_chrome_ua, gen_edge_ua, gen_firefox_ua};
-
+pub mod constant;
+pub mod form;
 pub mod user_agent;
 
-pub static UA_GENS: Lazy<Vec<fn() -> String>> =
-    Lazy::new(|| vec![gen_firefox_ua, gen_chrome_ua, gen_edge_ua]);
+pub fn load(key: &str, file: &str) {
+    let buf = std::env::current_dir().unwrap().join(file);
+    std::env::set_var(key, buf);
+}
 
-pub static FF_VERSIONS: Lazy<Vec<f64>> = Lazy::new(|| {
-    read_versions_from_file("ff_versions", std::env::var("user_agent").unwrap().as_str())
-        .unwrap_or_else(|err| {
-            eprintln!("Error reading versions file: {}", err);
-            Vec::new()
-        })
-});
-
-pub static CHROME_VERSIONS: Lazy<Vec<String>> = Lazy::new(|| {
-    read_versions_from_file(
-        "chrome_versions",
-        std::env::var("user_agent").unwrap().as_str(),
-    )
-    .unwrap_or_else(|err| {
-        eprintln!("Error reading versions file: {}", err);
-        Vec::new()
-    })
-});
-
-pub static EDGE_VERSIONS: Lazy<Vec<String>> = Lazy::new(|| {
-    read_versions_from_file(
-        "edge_versions",
-        std::env::var("user_agent").unwrap().as_str(),
-    )
-    .unwrap_or_else(|err| {
-        eprintln!("Error reading versions file: {}", err);
-        Vec::new()
-    })
-});
-
-pub static OS_STRINGS: Lazy<Vec<String>> = Lazy::new(|| {
-    read_versions_from_file("os", std::env::var("user_agent").unwrap().as_str()).unwrap_or_else(
-        |err| {
-            eprintln!("Error reading versions file: {}", err);
-            Vec::new()
-        },
-    )
-});
-
-fn read_versions_from_file<T>(
+fn read_versions_from_file_inner<T>(
     key: &str,
     filename: &str,
 ) -> Result<Vec<T>, Box<dyn std::error::Error>>
@@ -69,4 +31,14 @@ where
     };
 
     Ok(versions)
+}
+
+fn read_versions_from_file(key: &str, filename: &str) -> Vec<String> {
+    match read_versions_from_file_inner(key, std::env::var(filename).unwrap().as_str()) {
+        Ok(versions) => versions,
+        Err(err) => {
+            log::error!("Error reading versions file: {}", err);
+            Vec::new()
+        }
+    }
 }
