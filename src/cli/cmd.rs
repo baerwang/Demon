@@ -52,7 +52,6 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
             let proxy = Some(c.proxy.as_deref().unwrap_or_default());
             let launch_options = LaunchOptions::default_builder()
                 .path(chromium_path)
-                .proxy_server(None)
                 .headless(c.headless)
                 .sandbox(c.sandbox)
                 .proxy_server(proxy)

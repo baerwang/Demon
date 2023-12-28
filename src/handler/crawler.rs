@@ -20,13 +20,12 @@ pub fn browse_wikipedia(
                 .collect(),
         )
         .unwrap();
-        let h1 = tab.wait_for_xpath("/html/body/div/h1")?;
-        assert_eq!(h1.get_inner_text().unwrap().as_str(), "Example Domain");
         let ug = tab
             .evaluate("window.navigator.userAgent", false)?
             .value
             .unwrap();
         assert_eq!(random_ug, ug);
+        _ = tab.close(true);
     }
 
     Ok(())
