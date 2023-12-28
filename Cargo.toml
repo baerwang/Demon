@@ -34,6 +34,8 @@ clap = { version = "4.1", default-features = false, features = [
     "usage",
     "suggestions",
     "cargo",
+    "derive",
+    "string"
 ] }
 log = "0.4.20"
 toml = "0.8.8"
