@@ -14,9 +14,15 @@ pub struct CLi {
     /// Custom Http Headers,support multi '--custom-headers Server:example Cookie:baerwang'
     #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
     pub custom_headers: Vec<String>,
-    #[arg(long, default_value_t = false, action = Set)]
     /// Robots Exclusion Protocol
+    #[arg(short, long, default_value_t = false, action = Set)]
     pub robots: bool,
+    /// Authenticate username
+    #[arg(short, long)]
+    pub username: Option<String>,
+    /// Authenticate password
+    #[arg(short, long)]
+    pub password: Option<String>,
     #[command(subcommand)]
     #[clap(value_parser = opt_default)]
     pub opt: Option<Opt>,

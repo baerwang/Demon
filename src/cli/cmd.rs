@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use anyhow::anyhow;
 use clap::Parser;
 use headless_chrome::browser::default_executable;
-use headless_chrome::LaunchOptions;
+use headless_chrome::{browser, LaunchOptions};
 
 use crate::cli::args;
 use crate::handler::crawler;
-use crate::model;
+use crate::{common, model};
 
 pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
     let app = args::CLi::parse();
@@ -27,21 +27,23 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
     let config = model::task::TaskConfig {
         target: app.target,
         headers,
-        robots: false,
+        username: app.username,
+        password: app.password,
+        robots: app.robots,
         range: 0,
         repeat: 0,
     };
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
 
-    let buf = std::env::current_dir()
-        .unwrap()
-        .join("files/user_agent.toml");
-    std::env::set_var("user_agent", buf);
+    common::load("user_agent", "files/user_agent.toml");
+
+    let options = browser::FetcherOptions::default().with_allow_download(false);
 
     if app.opt.is_none() {
         let launch_options = LaunchOptions::default_builder()
             .path(Some(chromium_path))
+            .fetcher_options(options)
             .build()?;
         return crawler::browse_wikipedia(config, launch_options);
     }
@@ -57,6 +59,7 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 .proxy_server(proxy)
                 .ignore_certificate_errors(c.ignore_certificate_errors)
                 .user_data_dir(c.user_data_dir)
+                .fetcher_options(options)
                 .build()?;
 
             crawler::browse_wikipedia(config, launch_options)
