@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::path::PathBuf;
 
 use clap::ArgAction::Set;
@@ -8,10 +7,10 @@ use headless_chrome::browser::default_executable;
 #[derive(Debug, Parser)]
 #[command(author, version, about, subcommand_precedence_over_arg = true)]
 pub struct CLi {
-    /// Target to Website,Support Multi '--target https://example.com https://testphp.vulnweb.com'
+    /// Target to Website,Support Multi-value '--target https://example.com http://testphp.vulnweb.com'
     #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
     pub target: Vec<String>,
-    /// Custom Http Headers,support multi '--custom-headers Server:example Cookie:baerwang'
+    /// Custom Http Headers,Support Multi-value '--custom-headers Server:example Cookie:baerwang'
     #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
     pub custom_headers: Vec<String>,
     /// Robots Exclusion Protocol
@@ -24,7 +23,6 @@ pub struct CLi {
     #[arg(short, long)]
     pub password: Option<String>,
     #[command(subcommand)]
-    #[clap(value_parser = opt_default)]
     pub opt: Option<Opt>,
 }
 
@@ -53,17 +51,33 @@ pub struct Chromium {
     pub proxy: Option<String>,
 }
 
-#[allow(dead_code)]
-fn opt_default(o: Option<Opt>) -> Result<Option<Opt>, Infallible> {
-    if o.is_none() {
-        return Ok(Some(Opt::Chromium(Chromium {
+impl Default for Opt {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Opt {
+    pub fn new() -> Self {
+        Opt::Chromium(Chromium::new())
+    }
+}
+
+impl Default for Chromium {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Chromium {
+    pub fn new() -> Self {
+        Chromium {
             path: Some(default_executable().unwrap()),
             headless: true,
             sandbox: true,
             ignore_certificate_errors: true,
             user_data_dir: None,
             proxy: None,
-        })));
+        }
     }
-    Ok(o)
 }

@@ -64,4 +64,5 @@ os = [
     "Windows NT 6.1; WOW64",
     "Windows NT 6.1; Win64; x64",
     # Linux
-    "X11; Linux x86_64"]
+    "X11; Linux x86_64"
+]

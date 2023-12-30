@@ -22,8 +22,6 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect();
 
-    let chromium_path = default_executable().map_err(|e| anyhow!(e))?;
-
     let config = model::task::TaskConfig {
         target: app.target,
         headers,
@@ -37,23 +35,20 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
 
     common::load("user_agent", "files/user_agent.toml");
+    common::load("form", "files/form.toml");
 
     let options = browser::FetcherOptions::default().with_allow_download(false);
 
-    if app.opt.is_none() {
-        let launch_options = LaunchOptions::default_builder()
-            .path(Some(chromium_path))
-            .fetcher_options(options)
-            .build()?;
-        return crawler::browse_wikipedia(config, launch_options);
-    }
-
-    match app.opt {
-        Some(args::Opt::Chromium(c)) => {
-            let chromium_path = Some(c.path.unwrap_or(chromium_path));
+    let opt = app.opt.unwrap_or_default();
+    match opt {
+        args::Opt::Chromium(c) => {
+            let path = Some(
+                c.path
+                    .unwrap_or(default_executable().map_err(|e| anyhow!(e))?),
+            );
             let proxy = Some(c.proxy.as_deref().unwrap_or_default());
             let launch_options = LaunchOptions::default_builder()
-                .path(chromium_path)
+                .path(path)
                 .headless(c.headless)
                 .sandbox(c.sandbox)
                 .proxy_server(proxy)
@@ -64,6 +59,5 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
 
             crawler::browse_wikipedia(config, launch_options)
         }
-        _ => Ok(()),
     }
 }

@@ -7,11 +7,6 @@ pub fn browse_wikipedia(
     launch_options: LaunchOptions,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::new(launch_options)?;
-    let locked_vec = browser.get_tabs().lock().unwrap();
-    let tabs = &*locked_vec[1];
-    tabs.close(true)?;
-    drop(locked_vec);
-
     let random_ug = common::user_agent::random_user_agent();
     for item in &config.target {
         let tab = browser.new_tab()?;
@@ -32,6 +27,15 @@ pub fn browse_wikipedia(
             .value
             .unwrap();
         assert_eq!(random_ug, ug);
+
+        let _ = tab
+            .evaluate("document.forms.length", false)?
+            .value
+            .unwrap()
+            .as_u64()
+            .unwrap_or_default();
+        // todo
+        // tab.evaluate(jscode,false)
         _ = tab.close(true);
     }
 
