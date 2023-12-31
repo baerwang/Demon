@@ -48,6 +48,16 @@ pub fn random_password() -> String {
     result
 }
 
+pub fn smart_text(label: &str) -> String {
+    match label {
+        s if s.contains("密码") => random_password(),
+        s if s.contains("邮箱") => random_email(),
+        s if s.contains("手机") || s.contains("电话") => random_phone(),
+        s if s.contains("生日") || s.contains("日期") => random_date(),
+        _ => random_name(),
+    }
+}
+
 pub fn random_date() -> String {
     let start_date = NaiveDate::from_ymd_opt(1999, 1, 1).unwrap();
     let end_date = NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
@@ -64,6 +74,7 @@ mod tests {
     use crate::common;
     use crate::common::form::{
         random_date, random_email, random_name, random_password, random_phone, random_pin_yin,
+        smart_text,
     };
 
     #[test]
@@ -75,6 +86,10 @@ mod tests {
         println!("{}", random_phone());
         println!("{}", random_password());
         println!("{}", random_date());
+
+        for x in vec!["密码", "手机", "邮箱", "日期"] {
+            println!("{}", smart_text(x));
+        }
     }
 
     #[test]

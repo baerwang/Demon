@@ -19,9 +19,9 @@ pub fn parse_robots(site: String) -> Result<HashSet<String>, Box<dyn std::error:
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
         .send();
-    assert_eq!(rsp.as_ref().unwrap().status(), 200);
+    assert_eq!(rsp.as_ref().unwrap().status(), reqwest::StatusCode::OK);
     let txt = rsp?.text()?;
-    let allow_values: HashSet<String> = txt
+    let values: HashSet<String> = txt
         .lines()
         .flat_map(|line| {
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -31,7 +31,7 @@ pub fn parse_robots(site: String) -> Result<HashSet<String>, Box<dyn std::error:
             }
         })
         .collect();
-    Ok(allow_values)
+    Ok(values)
 }
 
 #[cfg(test)]

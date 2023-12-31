@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use once_cell::sync::Lazy;
+use serde::Deserialize;
 
 type HtmlFn = fn(Html);
 
@@ -20,16 +21,16 @@ pub static FORM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
     map
 });
 
-#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 pub struct Html {
-    id: String,
-    name: String,
-    el_type: String,
-    tag_name: String,
-    class_name: String,
-    label: String,
-    readonly: String,
-    xpath: String,
+    pub id: String,
+    pub name: String,
+    pub el_type: String,
+    pub tag_name: String,
+    pub class_name: String,
+    pub label: String,
+    pub readonly: String,
+    pub xpath: String,
 }
 
 fn text(_: Html) {}
