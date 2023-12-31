@@ -87,7 +87,7 @@ mod tests {
         println!("{}", random_password());
         println!("{}", random_date());
 
-        for x in vec!["密码", "手机", "邮箱", "日期"] {
+        for x in &["密码", "手机", "邮箱", "日期"] {
             println!("{}", smart_text(x));
         }
     }
