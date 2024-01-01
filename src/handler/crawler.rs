@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use headless_chrome::protocol::cdp::types::Event;
+use headless_chrome::protocol::cdp::Network::ResourceType;
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
 use headless_chrome::{Browser, LaunchOptions};
 
@@ -13,6 +17,23 @@ pub fn browse_wikipedia(
     let random_ug = common::user_agent::random_user_agent();
     for item in &config.target {
         let tab = browser.new_tab()?;
+        tab.add_event_listener(Arc::new(|event: &Event| match event {
+            Event::PageWindowOpen(_) => log::info!("close open windows"),
+            Event::PageJavascriptDialogOpening(_) => log::info!("close alert"),
+            Event::NetworkRequestWillBeSent(e) => match e.params.Type {
+                Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
+                    log::info!("req url:{}", e.params.request.url)
+                }
+                _ => (),
+            },
+            Event::NetworkResponseReceived(e) => match e.params.Type {
+                ResourceType::Document | ResourceType::Xhr => {
+                    log::info!("rsp url:{}", e.params.response.url)
+                }
+                _ => (),
+            },
+            _ => (),
+        }))?;
         tab.enable_fetch(None, Some(true))?;
         tab.authenticate(config.username.clone(), config.password.clone())?;
         tab.set_user_agent(random_ug.as_str(), None, None).unwrap();

@@ -21,7 +21,7 @@ pub static FORM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
     map.insert("date", date);
     map.insert("radio", radio);
     map.insert("checkbox", checkbox);
-    map.insert("select_one", select_one);
+    map.insert("select-one", select_one);
     map.insert("submit", submit);
     map.insert("button", button);
     map
@@ -85,7 +85,15 @@ fn checkbox(tab: Arc<Tab>, h: Html) {
     _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
 }
 
-fn select_one(_: Arc<Tab>, _: Html) {}
+fn select_one(tab: Arc<Tab>, h: Html) {
+    // todo
+    _ = tab
+        .wait_for_xpath(h.xpath.as_str())
+        .unwrap()
+        .focus()
+        .unwrap();
+    tab.press_key("ArrowDown").unwrap();
+}
 
 fn submit(tab: Arc<Tab>, h: Html) {
     _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
