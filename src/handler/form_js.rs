@@ -1,7 +1,5 @@
 pub static JS_CODE: &str = r#"
-data()
-
-	function data() {
+	(function () {
 	    let array = [];
 	    for (let index = 0; index < document.forms.length; index++) {
 	        let form = document.forms[index];
@@ -23,7 +21,7 @@ data()
     	    }
 	    }
     	return array;
-    }
+    })();
 
 	function getPathTo(element) {
 		if (element.id !== '')

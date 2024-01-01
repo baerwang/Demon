@@ -1,9 +1,15 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use headless_chrome::Tab;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
-type HtmlFn = fn(Html);
+use crate::common::form::{
+    random_date, random_email, random_password, random_phone, random_pin_yin, smart_text,
+};
+
+type HtmlFn = fn(Arc<Tab>, Html);
 
 pub static FORM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
     let mut map: HashMap<&str, HtmlFn> = HashMap::new();
@@ -33,24 +39,58 @@ pub struct Html {
     pub xpath: String,
 }
 
-fn text(_: Html) {}
+fn text(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+    if !h.readonly.is_empty() {
+        _ = tab.press_key("ArrowDown").unwrap().press_key("Enter");
+        return;
+    }
+    _ = tab
+        .send_character(smart_text(h.label.as_str()).as_str())
+        .unwrap();
+}
 
-fn textarea(_: Html) {}
+fn textarea(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab
+        .send_character(format!("{} {}", random_password(), random_pin_yin()).as_str())
+        .unwrap();
+}
 
-fn password(_: Html) {}
+fn password(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.send_character(random_password().as_str()).unwrap();
+}
 
-fn email(_: Html) {}
+fn email(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.send_character(random_email().as_str())
+}
 
-fn tel(_: Html) {}
+fn tel(tab: Arc<Tab>, h: Html) {
+    tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.send_character(random_phone().as_str())
+}
 
-fn date(_: Html) {}
+fn date(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.send_character(random_date().as_str())
+}
 
-fn radio(_: Html) {}
+fn radio(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+}
 
-fn checkbox(_: Html) {}
+fn checkbox(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+}
 
-fn select_one(_: Html) {}
+fn select_one(_: Arc<Tab>, _: Html) {}
 
-fn submit(_: Html) {}
+fn submit(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+}
 
-fn button(_: Html) {}
+fn button(tab: Arc<Tab>, h: Html) {
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+}

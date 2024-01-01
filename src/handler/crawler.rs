@@ -1,7 +1,7 @@
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
 use headless_chrome::{Browser, LaunchOptions};
 
-use crate::handler::form::Html;
+use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::JS_CODE;
 use crate::{common, model};
 
@@ -35,10 +35,11 @@ pub fn browse_wikipedia(
             let list: Vec<Html> =
                 serde_json::from_str(&result_value.to_string()).expect("Failed to parse JSON");
             for item in list {
-                println!(
-                    "smart text {}",
-                    common::form::smart_text(item.label.as_str())
-                );
+                if let Some(func) = FORM.get(item.el_type.as_str()) {
+                    func(tab.clone(), item);
+                } else {
+                    log::warn!("not el type: {}", item.el_type);
+                }
             }
         }
         _ = tab.close(true);

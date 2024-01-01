@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate};
+use chrono::{Duration, Local, NaiveDate};
 use rand::prelude::SliceRandom;
 use rand::Rng;
 
@@ -50,17 +50,17 @@ pub fn random_password() -> String {
 
 pub fn smart_text(label: &str) -> String {
     match label {
-        s if s.contains("密码") => random_password(),
-        s if s.contains("邮箱") => random_email(),
-        s if s.contains("手机") || s.contains("电话") => random_phone(),
+        s if s.contains("密码") || s.contains("password") => random_password(),
+        s if s.contains("邮箱") || s.contains("email") => random_email(),
         s if s.contains("生日") || s.contains("日期") => random_date(),
+        s if s.contains("手机") || s.contains("电话") || s.contains("phone") => random_phone(),
         _ => random_name(),
     }
 }
 
 pub fn random_date() -> String {
     let start_date = NaiveDate::from_ymd_opt(1999, 1, 1).unwrap();
-    let end_date = NaiveDate::from_ymd_opt(2024, 12, 31).unwrap();
+    let end_date = Local::now().date_naive();
 
     let mut rng = rand::thread_rng();
     let random_days = rng.gen_range(0..=(end_date - start_date).num_days());
