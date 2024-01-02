@@ -43,19 +43,21 @@ pub fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error::Erro
         .send();
 
     if let Ok(r) = rsp {
-        let txt = r.text()?;
-        let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
-        let values = sitemap.values();
-        let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
+        if r.status() == reqwest::StatusCode::OK {
+            let txt = r.text()?;
+            let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+            let values = sitemap.values();
+            let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
 
-        let client = reqwest::blocking::Client::new();
-        values.iter().for_each(|v| {
-            loc_set.extend(
-                parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default(),
-            )
-        });
+            let client = reqwest::blocking::Client::new();
+            values.iter().for_each(|v| {
+                loc_set.extend(
+                    parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default(),
+                )
+            });
 
-        return Ok(loc_set);
+            return Ok(loc_set);
+        }
     }
 
     Ok(Default::default())
@@ -75,7 +77,7 @@ fn parse_sitemap(
         .send();
 
     if let Ok(r) = rsp {
-        if r.status() != reqwest::StatusCode::OK {
+        if r.status() == reqwest::StatusCode::OK {
             let txt = r.text()?;
             let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
             return Ok(sitemap.values());
