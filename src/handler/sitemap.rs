@@ -12,6 +12,17 @@ pub struct Sitemap {
     url: Option<Vec<LocUrl>>,
 }
 
+impl Sitemap {
+    fn values(self) -> Vec<String> {
+        self.sitemap
+            .into_iter()
+            .chain(self.url)
+            .flat_map(|items| items.into_iter())
+            .map(|v| v.loc)
+            .collect()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct LocUrl {
     loc: String,
@@ -30,23 +41,24 @@ pub fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error::Erro
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
         .send();
-    assert_eq!(rsp.as_ref().unwrap().status(), reqwest::StatusCode::OK);
-    let txt = rsp?.text()?;
 
-    let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
-    let mut loc_set: HashSet<String> =
-        HashSet::with_capacity(sitemap.sitemap.as_ref().map_or(0, |sitemap| sitemap.len()));
+    if let Ok(r) = rsp {
+        let txt = r.text()?;
+        let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+        let values = sitemap.values();
+        let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
 
-    if let Some(sitemap_urls) = sitemap.sitemap {
         let client = reqwest::blocking::Client::new();
-        sitemap_urls.iter().for_each(|v| {
+        values.iter().for_each(|v| {
             loc_set.extend(
-                parse_sitemap(v.loc.to_string(), ua.clone(), client.clone()).unwrap_or_default(),
+                parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default(),
             )
         });
+
+        return Ok(loc_set);
     }
 
-    Ok(loc_set)
+    Ok(Default::default())
 }
 
 fn parse_sitemap(
@@ -61,20 +73,16 @@ fn parse_sitemap(
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
         .send();
-    assert_eq!(rsp.as_ref().unwrap().status(), reqwest::StatusCode::OK);
-    let txt = rsp?.text()?;
 
-    let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+    if let Ok(r) = rsp {
+        if r.status() != reqwest::StatusCode::OK {
+            let txt = r.text()?;
+            let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+            return Ok(sitemap.values());
+        }
+    }
 
-    let values: Vec<String> = sitemap
-        .sitemap
-        .into_iter()
-        .chain(sitemap.url)
-        .flat_map(|items| items.into_iter())
-        .map(|v| v.loc)
-        .collect();
-
-    Ok(values)
+    Ok(Default::default())
 }
 
 #[cfg(test)]
