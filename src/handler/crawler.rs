@@ -4,7 +4,7 @@ use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
 use headless_chrome::protocol::cdp::Page::HandleJavaScriptDialog;
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
-use headless_chrome::{Browser, LaunchOptions};
+use headless_chrome::{Browser, LaunchOptions, Tab};
 
 use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::JS_CODE;
@@ -19,30 +19,7 @@ pub fn browse_wikipedia(
     for item in &config.target {
         let tab = browser.new_tab()?;
         let tab_clone = Arc::clone(&tab);
-        tab.add_event_listener(Arc::new(move |event: &Event| match event {
-            Event::PageWindowOpen(_) => _ = tab_clone.close_target().unwrap(),
-            Event::PageJavascriptDialogOpening(_) => {
-                _ = tab_clone
-                    .call_method(HandleJavaScriptDialog {
-                        accept: false,
-                        prompt_text: None,
-                    })
-                    .unwrap()
-            }
-            Event::NetworkRequestWillBeSent(e) => match e.params.Type {
-                Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
-                    log::info!("req url:{}", e.params.request.url)
-                }
-                _ => (),
-            },
-            Event::NetworkResponseReceived(e) => match e.params.Type {
-                ResourceType::Document | ResourceType::Xhr => {
-                    log::info!("rsp url:{}", e.params.response.url)
-                }
-                _ => (),
-            },
-            _ => (),
-        }))?;
+        event_listener(&tab, tab_clone)?;
         tab.enable_fetch(None, Some(true))?;
         tab.authenticate(config.username.clone(), config.password.clone())?;
         tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
@@ -75,6 +52,37 @@ pub fn browse_wikipedia(
         _ = tab.close(true);
     }
 
+    Ok(())
+}
+
+fn event_listener(tab: &Arc<Tab>, tab_clone: Arc<Tab>) -> Result<(), Box<dyn std::error::Error>> {
+    tab.add_event_listener(Arc::new(move |event: &Event| match event {
+        Event::PageWindowOpen(_) => _ = tab_clone.close_target().unwrap(),
+        Event::PageJavascriptDialogOpening(_) => {
+            _ = tab_clone
+                .call_method(HandleJavaScriptDialog {
+                    accept: false,
+                    prompt_text: None,
+                })
+                .unwrap()
+        }
+        Event::PageLoadEventFired(_) => log::info!("load event fired"),
+        Event::PageDomContentEventFired(_) => log::info!("dom content event fired"),
+        Event::NetworkRequestWillBeSent(e) => match e.params.Type {
+            Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
+                log::info!("req url:{}", e.params.request.url)
+            }
+            _ => (),
+        },
+        Event::NetworkResponseReceived(e) => match e.params.Type {
+            ResourceType::Document | ResourceType::Xhr => {
+                log::info!("rsp url:{}", e.params.response.url)
+            }
+            _ => (),
+        },
+        Event::RuntimeBindingCalled(_) => log::info!("binding called"),
+        _ => (),
+    }))?;
     Ok(())
 }
 
