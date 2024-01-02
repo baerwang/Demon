@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
+use headless_chrome::protocol::cdp::Page::HandleJavaScriptDialog;
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
 use headless_chrome::{Browser, LaunchOptions};
 
@@ -17,9 +18,17 @@ pub fn browse_wikipedia(
     let random_ug = common::user_agent::random_user_agent();
     for item in &config.target {
         let tab = browser.new_tab()?;
-        tab.add_event_listener(Arc::new(|event: &Event| match event {
-            Event::PageWindowOpen(_) => log::info!("close open windows"),
-            Event::PageJavascriptDialogOpening(_) => log::info!("close alert"),
+        let tab_clone = Arc::clone(&tab);
+        tab.add_event_listener(Arc::new(move |event: &Event| match event {
+            Event::PageWindowOpen(_) => _ = tab_clone.close_target().unwrap(),
+            Event::PageJavascriptDialogOpening(_) => {
+                _ = tab_clone
+                    .call_method(HandleJavaScriptDialog {
+                        accept: false,
+                        prompt_text: None,
+                    })
+                    .unwrap()
+            }
             Event::NetworkRequestWillBeSent(e) => match e.params.Type {
                 Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
                     log::info!("req url:{}", e.params.request.url)
