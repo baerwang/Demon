@@ -1,6 +1,25 @@
 use std::str::FromStr;
 
 use headless_chrome::protocol::cdp::Network::Request;
+use regex::Regex;
+
+pub fn factory(r: &str, url: url::Url, sub_domain: Option<Vec<String>>) -> Box<dyn ScanPolicy> {
+    let host = url.host_str().unwrap().to_string();
+    match r {
+        "all" => Box::new(All {
+            regex: domain_regexp(host),
+        }),
+        "sub_domain" => Box::new(SubDomain { sub_domain }),
+        "not_sub_domain" => Box::new(NotSubDomain {
+            regex: domain_regexp(host),
+            sub_domain,
+        }),
+        "dir" => Box::new(Directory {
+            root: url.to_string(),
+        }),
+        _ => Box::new(Current { host }),
+    }
+}
 
 pub trait ScanPolicy {
     fn handle(&self, req: Request) -> bool;
@@ -17,35 +36,66 @@ impl ScanPolicy for Current {
     }
 }
 
-struct Whole {}
+struct All {
+    regex: Regex,
+}
 
-impl ScanPolicy for Whole {
-    fn handle(&self, _req: Request) -> bool {
-        todo!()
+impl ScanPolicy for All {
+    fn handle(&self, req: Request) -> bool {
+        let v = url::Url::from_str(req.url.as_str()).unwrap();
+        self.regex.is_match(v.host_str().unwrap())
     }
 }
 
-struct ScanSubDomain {}
+struct SubDomain {
+    sub_domain: Option<Vec<String>>,
+}
 
-impl ScanPolicy for ScanSubDomain {
-    fn handle(&self, _req: Request) -> bool {
-        todo!()
+impl ScanPolicy for SubDomain {
+    fn handle(&self, req: Request) -> bool {
+        if let Some(items) = &self.sub_domain {
+            let v = url::Url::from_str(req.url.as_str()).unwrap();
+            let host = v.host_str().unwrap_or_default();
+            for domain in items {
+                if host == domain {
+                    return true;
+                }
+            }
+        }
+        false
     }
 }
 
-struct NotScanSubDomain {}
+struct NotSubDomain {
+    regex: Regex,
+    sub_domain: Option<Vec<String>>,
+}
 
-impl ScanPolicy for NotScanSubDomain {
-    fn handle(&self, _req: Request) -> bool {
-        todo!()
+impl ScanPolicy for NotSubDomain {
+    fn handle(&self, req: Request) -> bool {
+        let v = url::Url::from_str(req.url.as_str()).unwrap();
+        let host = v.host_str().unwrap_or_default();
+        if !self.regex.is_match(host) {
+            return false;
+        }
+        if let Some(items) = &self.sub_domain {
+            for domain in items {
+                if host == domain {
+                    return false;
+                }
+            }
+            true
+        } else {
+            false
+        }
     }
 }
 
-struct ScanDirectory {
+struct Directory {
     root: String,
 }
 
-impl ScanPolicy for ScanDirectory {
+impl ScanPolicy for Directory {
     fn handle(&self, req: Request) -> bool {
         if let Ok(v) = url::Url::from_str(&req.url) {
             if v.path().is_empty() {
@@ -56,5 +106,32 @@ impl ScanPolicy for ScanDirectory {
         } else {
             false
         }
+    }
+}
+
+fn domain_regexp(host: String) -> Regex {
+    let split: Vec<&str> = host.split('.').collect();
+
+    let regex_str = match split.len() {
+        3 => format!(r#"^.*.{}.{}"#, split[1], split[2]),
+        2 => format!(r#"^.*{}.{}"#, split[0], split[1]),
+        _ => format!(r#"^.*{}"#, host),
+    };
+
+    Regex::new(&regex_str).unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::handler::scan_policy::domain_regexp;
+
+    #[test]
+    fn domain_regexp_test() {
+        let regex = domain_regexp("example.com".to_string());
+        assert_eq!(regex.is_match("demon.example.com"), true);
+        assert_eq!(regex.is_match("demon.example1.com"), false);
+        let regex = domain_regexp("demon.example.com".to_string());
+        assert_eq!(regex.is_match("example.com"), false);
+        assert_eq!(regex.is_match("demon1.example.com"), true);
     }
 }
