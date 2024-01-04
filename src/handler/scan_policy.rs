@@ -128,10 +128,10 @@ mod tests {
     #[test]
     fn domain_regexp_test() {
         let regex = domain_regexp("example.com".to_string());
-        assert_eq!(regex.is_match("demon.example.com"), true);
-        assert_eq!(regex.is_match("demon.example1.com"), false);
+        assert!(regex.is_match("demon.example.com"));
+        assert!(!regex.is_match("demon.example1.com"));
         let regex = domain_regexp("demon.example.com".to_string());
-        assert_eq!(regex.is_match("example.com"), false);
-        assert_eq!(regex.is_match("demon1.example.com"), true);
+        assert!(!regex.is_match("example.com"));
+        assert!(regex.is_match("demon1.example.com"));
     }
 }
