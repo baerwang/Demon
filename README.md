@@ -46,7 +46,7 @@ Daemon is a browser crawler that does URL harvesting in chrome headless mode
     5. directory
 
 - [x] Random User-Agent
-- [ ] Duplicate detection Policy
+- [x] Duplicate detection Policy
 
     1. params
     2. params+method (default)

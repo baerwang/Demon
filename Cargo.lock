@@ -366,12 +366,14 @@ dependencies = [
  "log",
  "once_cell",
  "rand",
+ "regex",
  "reqwest",
  "serde",
  "serde-xml-rs",
  "serde_derive",
  "serde_json",
  "toml",
+ "url",
 ]
 
 [[package]]
