@@ -1,14 +1,22 @@
 use headless_chrome::protocol::cdp::Network::Request;
 use regex::Regex;
 
+pub fn factory(r: &str) -> Box<dyn Duplicate> {
+    match r {
+        "body" => Box::new(ParamsMethodBody {}),
+        "params" => Box::new(Params {}),
+        _ => Box::new(ParamsMethod {}),
+    }
+}
+
 pub trait Duplicate {
-    fn handle(req: Request) -> String;
+    fn handle(&self, req: Request) -> String;
 }
 
 struct Params {}
 
 impl Duplicate for Params {
-    fn handle(req: Request) -> String {
+    fn handle(&self, req: Request) -> String {
         format!("{}{}", req.url, req.method)
     }
 }
@@ -16,7 +24,7 @@ impl Duplicate for Params {
 struct ParamsMethod {}
 
 impl Duplicate for ParamsMethod {
-    fn handle(req: Request) -> String {
+    fn handle(&self, req: Request) -> String {
         format!(
             "{}{}{}",
             parse_url(req.url.clone()),
@@ -29,7 +37,7 @@ impl Duplicate for ParamsMethod {
 struct ParamsMethodBody {}
 
 impl Duplicate for ParamsMethodBody {
-    fn handle(req: Request) -> String {
+    fn handle(&self, req: Request) -> String {
         format!(
             "{}{}{}{}",
             parse_url(req.url.clone()),

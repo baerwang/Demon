@@ -4,53 +4,46 @@ use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
 use headless_chrome::protocol::cdp::Page::HandleJavaScriptDialog;
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
-use headless_chrome::{Browser, LaunchOptions, Tab};
+use headless_chrome::{Browser, Tab};
 
 use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::JS_CODE;
 use crate::{common, model};
 
-pub fn browse_wikipedia(
-    config: model::task::TaskConfig,
-    launch_options: LaunchOptions,
+pub fn tasks(
+    browser: Browser,
+    url: &str,
+    config: &model::task::TaskConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let browser = Browser::new(launch_options)?;
     let random_ug = common::user_agent::random_user_agent();
-    for item in &config.target {
-        let tab = browser.new_tab()?;
-        let tab_clone = Arc::clone(&tab);
-        event_listener(&tab, tab_clone)?;
-        tab.enable_fetch(None, Some(true))?;
-        tab.authenticate(config.username.clone(), config.password.clone())?;
-        tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
-        tab.navigate_to(item)?;
-        tab.set_extra_http_headers(
-            config
-                .headers
-                .iter()
-                .map(|(k, v)| (k.as_str(), v.as_str()))
-                .collect(),
-        )
-        .unwrap();
-        let ug = tab
-            .evaluate("window.navigator.userAgent", false)?
-            .value
-            .unwrap();
-        assert_eq!(random_ug, ug);
-        let result = tab.call_method(evaluate())?;
-        if let Some(result_value) = result.result.value {
-            let list: Vec<Html> =
-                serde_json::from_str(&result_value.to_string()).expect("Failed to parse JSON");
-            for item in list {
-                if let Some(func) = FORM.get(item.el_type.as_str()) {
-                    func(tab.clone(), item);
-                } else {
-                    log::warn!("not el type: {}", item.el_type);
-                }
+    let tab = browser.new_tab()?;
+    let tab_clone = Arc::clone(&tab);
+    event_listener(&tab, tab_clone)?;
+    tab.enable_fetch(None, Some(true))?;
+    tab.authenticate(config.username.clone(), config.password.clone())?;
+    tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
+    tab.navigate_to(url)?;
+    tab.set_extra_http_headers(
+        config
+            .headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect(),
+    )
+    .unwrap();
+    let result = tab.call_method(evaluate())?;
+    if let Some(result_value) = result.result.value {
+        let list: Vec<Html> =
+            serde_json::from_str(&result_value.to_string()).expect("Failed to parse JSON");
+        for item in list {
+            if let Some(func) = FORM.get(item.el_type.as_str()) {
+                func(tab.clone(), item);
+            } else {
+                log::warn!("not el type: {}", item.el_type);
             }
         }
-        _ = tab.close(true);
     }
+    _ = tab.close(true);
 
     Ok(())
 }

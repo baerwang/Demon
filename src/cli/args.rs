@@ -7,8 +7,11 @@ use headless_chrome::browser::default_executable;
 #[derive(Debug, Parser)]
 #[command(author, version, about, subcommand_precedence_over_arg = true)]
 pub struct CLi {
+    /// Number of concurrent transactions
+    #[arg(short, long, default_value_t = 20, action = Set)]
+    pub thread: usize,
     /// Target to Website,Support Multi-value '--target https://example.com http://testphp.vulnweb.com'
-    #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]
+    #[arg(long, value_parser, num_args = 1.., value_delimiter = ' ')]
     pub target: Vec<String>,
     /// Custom Http Headers,Support Multi-value '--custom-headers Server:example Cookie:baerwang'
     #[arg(short, long, value_parser, num_args = 1.., value_delimiter = ' ')]

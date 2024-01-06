@@ -1,4 +1,4 @@
-pub static JS_CODE: &str = r#"
+pub const JS_CODE: &str = r#"
 	(function () {
 	    const array = [];
 	    for (let index = 0; index < document.forms.length; index++) {
@@ -25,7 +25,7 @@ pub static JS_CODE: &str = r#"
 
     function getPathTo(element) {
         if (element.id !== '')
-			return `/html/id("${element.id}")`;
+			return `id("${element.id}")`;
         if (element === document.body) 
             return `/html/${element.tagName.toLowerCase()}`;
         const index = [...element.parentNode.children].filter((child) => child.tagName === element.tagName).indexOf(element) + 1;

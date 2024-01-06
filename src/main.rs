@@ -1,5 +1,6 @@
 use demon::cli::cmd;
 
-fn main() {
-    _ = cmd::cli()
+#[tokio::main]
+async fn main() {
+    _ = cmd::cli().await
 }

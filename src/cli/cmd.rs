@@ -3,13 +3,14 @@ use std::collections::HashMap;
 use anyhow::anyhow;
 use clap::Parser;
 use headless_chrome::browser::default_executable;
-use headless_chrome::{browser, LaunchOptions};
+use headless_chrome::{browser, Browser, LaunchOptions};
+use tokio::sync::mpsc;
 
 use crate::cli::args;
 use crate::handler::crawler;
-use crate::{common, model};
+use crate::{common, handler, model};
 
-pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
     let app = args::CLi::parse();
     let headers: HashMap<_, _> = app
         .custom_headers
@@ -23,13 +24,16 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     let config = model::task::TaskConfig {
-        target: app.target,
         headers,
         username: app.username,
         password: app.password,
         robots: app.robots,
-        range: 0,
-        repeat: 0,
+        range: handler::scan_policy::factory(
+            "",
+            url::Url::parse(app.target[0].as_str()).unwrap(),
+            None,
+        ),
+        repeat: handler::duplicate::factory(""),
     };
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
@@ -57,7 +61,22 @@ pub fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 .fetcher_options(options)
                 .build()?;
 
-            crawler::browse_wikipedia(config, launch_options)
+            let (tx, mut rx) = mpsc::channel::<String>(app.thread);
+            for url in app.target {
+                let tx = tx.clone();
+                tokio::spawn(async move {
+                    if tx.send(url).await.is_err() {
+                        log::error!("Failed to send URL through channel");
+                    }
+                });
+            }
+
+            let browser = Browser::new(launch_options)?;
+            while let Some(url) = rx.recv().await {
+                _ = crawler::tasks(browser.clone(), url.as_str(), &config);
+            }
+
+            Ok(())
         }
     }
 }

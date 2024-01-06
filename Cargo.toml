@@ -49,3 +49,4 @@ serde-xml-rs = "0.6.0"
 serde_derive = "1.0.194"
 regex = "1.10.2"
 url = "2.5.0"
+tokio = { version = "1.35.1", features = ["full"] }
