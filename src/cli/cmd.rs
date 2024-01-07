@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::anyhow;
 use clap::Parser;
+use dashmap::DashSet;
 use headless_chrome::browser::default_executable;
 use headless_chrome::{browser, Browser, LaunchOptions};
 use tokio::sync::mpsc;
@@ -23,17 +24,18 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
         })
         .collect();
 
+    let scan_factory =
+        handler::scan_policy::factory("", url::Url::parse(app.target[0].as_str()).unwrap(), None);
+
+    let duplicate_factory = handler::duplicate::factory("");
+
     let config = model::task::TaskConfig {
         headers,
         username: app.username,
         password: app.password,
         robots: app.robots,
-        range: handler::scan_policy::factory(
-            "",
-            url::Url::parse(app.target[0].as_str()).unwrap(),
-            None,
-        ),
-        repeat: handler::duplicate::factory(""),
+        range: scan_factory,
+        repeat: duplicate_factory,
     };
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
@@ -71,9 +73,16 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
 
+            // drop(tx);
+
+            let set: DashSet<String> = DashSet::new();
             let browser = Browser::new(launch_options)?;
             while let Some(url) = rx.recv().await {
-                _ = crawler::tasks(browser.clone(), url.as_str(), &config);
+                if set.insert(url.clone()) {
+                    _ = crawler::tasks(url.clone().as_str(), tx.clone(), browser.clone(), &config);
+                } else {
+                    println!("Value {} already exists", url.clone());
+                }
             }
 
             Ok(())

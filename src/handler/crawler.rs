@@ -2,26 +2,40 @@ use std::sync::Arc;
 
 use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
-use headless_chrome::protocol::cdp::Page::HandleJavaScriptDialog;
+use headless_chrome::protocol::cdp::Page::{
+    AddScriptToEvaluateOnNewDocument, HandleJavaScriptDialog, SetDownloadBehavior,
+    SetDownloadBehaviorBehaviorOption,
+};
 use headless_chrome::protocol::cdp::Runtime::Evaluate;
 use headless_chrome::{Browser, Tab};
+use tokio::sync::mpsc;
 
 use crate::handler::form::{Html, FORM};
-use crate::handler::form_js::JS_CODE;
+use crate::handler::form_js::{JS_CODE, TAB_INIT};
 use crate::{common, model};
 
 pub fn tasks(
-    browser: Browser,
     url: &str,
+    tx: mpsc::Sender<String>,
+    browser: Browser,
     config: &model::task::TaskConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let random_ug = common::user_agent::random_user_agent();
     let tab = browser.new_tab()?;
     let tab_clone = Arc::clone(&tab);
-    event_listener(&tab, tab_clone)?;
+    event_listener(&tab, tab_clone, tx)?;
     tab.enable_fetch(None, Some(true))?;
     tab.authenticate(config.username.clone(), config.password.clone())?;
     tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
+    tab.call_method(AddScriptToEvaluateOnNewDocument {
+        source: TAB_INIT.to_string(),
+        world_name: None,
+        include_command_line_api: None,
+    })?;
+    tab.call_method(SetDownloadBehavior {
+        behavior: SetDownloadBehaviorBehaviorOption::Deny,
+        download_path: None,
+    })?;
     tab.navigate_to(url)?;
     tab.set_extra_http_headers(
         config
@@ -48,7 +62,11 @@ pub fn tasks(
     Ok(())
 }
 
-fn event_listener(tab: &Arc<Tab>, tab_clone: Arc<Tab>) -> Result<(), Box<dyn std::error::Error>> {
+fn event_listener(
+    tab: &Arc<Tab>,
+    tab_clone: Arc<Tab>,
+    tx: mpsc::Sender<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
     tab.add_event_listener(Arc::new(move |event: &Event| match event {
         Event::PageWindowOpen(_) => _ = tab_clone.close_target().unwrap(),
         Event::PageJavascriptDialogOpening(_) => {
@@ -63,13 +81,17 @@ fn event_listener(tab: &Arc<Tab>, tab_clone: Arc<Tab>) -> Result<(), Box<dyn std
         Event::PageDomContentEventFired(_) => log::info!("dom content event fired"),
         Event::NetworkRequestWillBeSent(e) => match e.params.Type {
             Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
-                log::info!("req url:{}", e.params.request.url)
+                if tx.blocking_send(e.clone().params.request.url).is_err() {
+                    log::error!("Failed to send URL through channel");
+                }
             }
             _ => (),
         },
         Event::NetworkResponseReceived(e) => match e.params.Type {
             ResourceType::Document | ResourceType::Xhr => {
-                log::info!("rsp url:{}", e.params.response.url)
+                if tx.blocking_send(e.clone().params.response.url).is_err() {
+                    log::error!("Failed to send URL through channel");
+                }
             }
             _ => (),
         },
