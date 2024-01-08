@@ -19,7 +19,11 @@ pub fn robots(site: String) -> Result<HashSet<String>, Box<dyn std::error::Error
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
         .send();
-    assert_eq!(rsp.as_ref().unwrap().status(), reqwest::StatusCode::OK);
+
+    if rsp.as_ref().unwrap().status() != reqwest::StatusCode::OK {
+        return Ok(HashSet::new());
+    }
+
     let txt = rsp?.text()?;
     let values: HashSet<String> = txt
         .lines()

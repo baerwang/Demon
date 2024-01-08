@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use std::thread::sleep;
+use std::time::Duration;
 
 use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
@@ -6,7 +8,7 @@ use headless_chrome::protocol::cdp::Page::{
     AddScriptToEvaluateOnNewDocument, HandleJavaScriptDialog, SetDownloadBehavior,
     SetDownloadBehaviorBehaviorOption,
 };
-use headless_chrome::protocol::cdp::Runtime::Evaluate;
+use headless_chrome::protocol::cdp::Runtime::{AddBinding, Evaluate};
 use headless_chrome::{Browser, Tab};
 use tokio::sync::mpsc;
 
@@ -22,21 +24,17 @@ pub fn tasks(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let random_ug = common::user_agent::random_user_agent();
     let tab = browser.new_tab()?;
-    let tab_clone = Arc::clone(&tab);
-    event_listener(&tab, tab_clone, tx)?;
+    tab.enable_runtime()?;
     tab.enable_fetch(None, Some(true))?;
     tab.authenticate(config.username.clone(), config.password.clone())?;
     tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
+    tab.call_method(add_binding("addLink"))?;
+    tab.call_method(add_binding("Test"))?;
     tab.call_method(AddScriptToEvaluateOnNewDocument {
         source: TAB_INIT.to_string(),
         world_name: None,
         include_command_line_api: None,
     })?;
-    tab.call_method(SetDownloadBehavior {
-        behavior: SetDownloadBehaviorBehaviorOption::Deny,
-        download_path: None,
-    })?;
-    tab.navigate_to(url)?;
     tab.set_extra_http_headers(
         config
             .headers
@@ -45,6 +43,14 @@ pub fn tasks(
             .collect(),
     )
     .unwrap();
+    tab.call_method(SetDownloadBehavior {
+        behavior: SetDownloadBehaviorBehaviorOption::Deny,
+        download_path: None,
+    })?;
+    tab.navigate_to(url)?;
+    let tab_clone = Arc::clone(&tab);
+    event_listener(&tab, tab_clone, tx)?;
+    sleep(Duration::from_secs(1));
     let result = tab.call_method(evaluate())?;
     if let Some(result_value) = result.result.value {
         let list: Vec<Html> =
@@ -118,5 +124,13 @@ fn evaluate() -> Evaluate {
         repl_mode: None,
         allow_unsafe_eval_blocked_by_csp: None,
         unique_context_id: None,
+    }
+}
+
+fn add_binding(name: &str) -> AddBinding {
+    AddBinding {
+        name: name.to_string(),
+        execution_context_id: None,
+        execution_context_name: None,
     }
 }

@@ -38,6 +38,7 @@ pub enum Opt {
 #[derive(Debug, Args)]
 pub struct Chromium {
     /// Path for Chrome or Chromium.
+    #[arg(long = "path")]
     pub path: Option<PathBuf>,
     /// Determines whether to run headless version of the browser. Defaults to true.
     #[arg(long, default_value_t = true, action = Set)]
@@ -49,8 +50,10 @@ pub struct Chromium {
     #[arg(long, default_value_t = true, action = Set)]
     pub ignore_certificate_errors: bool,
     /// User Data (Profile) to use If unspecified, a new temp directory is created and used on every launch.
+    #[arg(short, long)]
     pub user_data_dir: Option<PathBuf>,
     /// Setup the proxy server for headless chrome instance.
+    #[arg(long = "proxy")]
     pub proxy: Option<String>,
 }
 

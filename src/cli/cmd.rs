@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
+use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::Parser;
@@ -9,6 +11,8 @@ use tokio::sync::mpsc;
 
 use crate::cli::args;
 use crate::handler::crawler;
+use crate::handler::robots::robots;
+use crate::handler::sitemap::sitemap;
 use crate::{common, handler, model};
 
 pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
@@ -52,6 +56,18 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 c.path
                     .unwrap_or(default_executable().map_err(|e| anyhow!(e))?),
             );
+
+            let args = vec![
+                OsStr::new("--disable-web-security=true"),
+                OsStr::new("--disable-xss-auditor=true"),
+                OsStr::new("--disable-setuid-sandbox=true"),
+                OsStr::new("--allow-running-insecure-content=true"),
+                OsStr::new("--disable-webgl=true"),
+                OsStr::new("--disable-popup-blocking=true"),
+                OsStr::new("--block-new-web-contents=true"),
+                OsStr::new("--blink-settings=imagesEnabled=false"),
+            ];
+
             let proxy = Some(c.proxy.as_deref().unwrap_or_default());
             let launch_options = LaunchOptions::default_builder()
                 .path(path)
@@ -61,14 +77,36 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 .ignore_certificate_errors(c.ignore_certificate_errors)
                 .user_data_dir(c.user_data_dir)
                 .fetcher_options(options)
+                .disable_default_args(true)
+                .args(args)
                 .build()?;
 
             let (tx, mut rx) = mpsc::channel::<String>(app.thread);
-            for url in app.target {
+            for url in app.target.clone() {
                 let tx = tx.clone();
                 tokio::spawn(async move {
                     if tx.send(url).await.is_err() {
                         log::error!("Failed to send URL through channel");
+                    }
+                });
+            }
+
+            if app.robots {
+                let root = Arc::new(app.target[0].clone());
+
+                let robot_tx = tx.clone();
+                let root_clone = Arc::clone(&root);
+                tokio::spawn(async move {
+                    if let Ok(t) = robots(root_clone.to_string()) {
+                        gather(t, robot_tx)
+                    }
+                });
+
+                let sitemap_tx = tx.clone();
+                let sitemap_clone = Arc::clone(&root);
+                tokio::spawn(async move {
+                    if let Ok(t) = sitemap(sitemap_clone.to_string()) {
+                        gather(t, sitemap_tx)
                     }
                 });
             }
@@ -87,5 +125,16 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(())
         }
+    }
+}
+
+fn gather(t: HashSet<String>, tx: mpsc::Sender<String>) {
+    for url in t {
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            if tx.send(url).await.is_err() {
+                log::error!("Failed to send URL through channel");
+            }
+        });
     }
 }
