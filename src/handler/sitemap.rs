@@ -1,6 +1,8 @@
 use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use std::time;
 
+use futures::stream::StreamExt;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use serde_derive::Deserialize;
 
@@ -50,20 +52,30 @@ pub async fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error
     let txt = rsp.text().await?;
     let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
     let values = sitemap.values();
-    let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
+    let loc_set: Arc<Mutex<HashSet<String>>> = Arc::new(Mutex::new(HashSet::new()));
 
-    let client = reqwest::blocking::Client::new();
-    values.iter().for_each(|v| {
-        loc_set.extend(parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default())
-    });
+    let client = reqwest::Client::new();
 
-    Ok(loc_set)
+    futures::stream::iter(values.into_iter().map(|v| {
+        let ua_clone = ua.clone();
+        let client_clone = client.clone();
+        let loc_set_clone = Arc::clone(&loc_set);
+        tokio::task::spawn(async move {
+            let result = parse_sitemap(v.to_string(), ua_clone, client_clone).await;
+            let mut inner_set = loc_set_clone.lock().unwrap();
+            inner_set.extend(result.unwrap_or_default());
+        })
+    }))
+    .for_each(|_| async {})
+    .await;
+
+    Ok(Arc::try_unwrap(loc_set).unwrap().into_inner().unwrap())
 }
 
-fn parse_sitemap(
+async fn parse_sitemap(
     url: String,
     ua: String,
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut headers = HeaderMap::new();
     headers.insert(USER_AGENT, ua.parse().unwrap());
@@ -71,16 +83,14 @@ fn parse_sitemap(
         .get(url)
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
-        .send();
+        .send()
+        .await?;
 
-    if let Ok(r) = rsp {
-        if r.status() == reqwest::StatusCode::OK {
-            let txt = r.text()?;
-            let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
-            return Ok(sitemap.values());
-        }
+    if rsp.status() == reqwest::StatusCode::OK {
+        let txt = rsp.text().await?;
+        let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+        return Ok(sitemap.values());
     }
-
     Ok(Default::default())
 }
 
@@ -102,17 +112,18 @@ mod tests {
         )
     }
 
-    #[test]
-    fn parse_sitemap_test() {
+    #[tokio::test]
+    async fn parse_sitemap_test() {
         common::load("user_agent", "files/user_agent.toml");
         let ua = common::user_agent::random_user_agent();
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::Client::new();
         assert_ne!(
             parse_sitemap(
                 "https://www.google.com/gmail/sitemap.xml".to_string(),
                 ua.clone(),
                 client.clone(),
             )
+            .await
             .unwrap()
             .len(),
             0
