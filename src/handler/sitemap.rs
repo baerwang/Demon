@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time;
 
-use futures::stream::StreamExt;
 use reqwest::header::{HeaderMap, USER_AGENT};
 use serde_derive::Deserialize;
 
@@ -56,18 +55,25 @@ pub async fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error
 
     let client = reqwest::Client::new();
 
-    futures::stream::iter(values.into_iter().map(|v| {
+    let mut handles = Vec::new();
+
+    for v in values {
         let ua_clone = ua.clone();
         let client_clone = client.clone();
         let loc_set_clone = Arc::clone(&loc_set);
-        tokio::task::spawn(async move {
+        let handle = tokio::task::spawn(async move {
             let result = parse_sitemap(v.to_string(), ua_clone, client_clone).await;
             let mut inner_set = loc_set_clone.lock().unwrap();
             inner_set.extend(result.unwrap_or_default());
-        })
-    }))
-    .for_each(|_| async {})
-    .await;
+        });
+        handles.push(handle);
+    }
+
+    while let Some(handle) = handles.pop() {
+        if let Err(err) = handle.await {
+            log::error!("handles failed:{:?}", err)
+        }
+    }
 
     Ok(Arc::try_unwrap(loc_set).unwrap().into_inner().unwrap())
 }
