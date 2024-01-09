@@ -95,9 +95,9 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 let root = Arc::new(app.target[0].clone());
 
                 let robot_tx = tx.clone();
-                let root_clone = Arc::clone(&root);
+                let robot_clone = Arc::clone(&root);
                 tokio::spawn(async move {
-                    if let Ok(t) = robots(root_clone.to_string()) {
+                    if let Ok(t) = robots(robot_clone.to_string()).await {
                         gather(t, robot_tx)
                     }
                 });
@@ -105,7 +105,7 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 let sitemap_tx = tx.clone();
                 let sitemap_clone = Arc::clone(&root);
                 tokio::spawn(async move {
-                    if let Ok(t) = sitemap(sitemap_clone.to_string()) {
+                    if let Ok(t) = sitemap(sitemap_clone.to_string()).await {
                         gather(t, sitemap_tx)
                     }
                 });

@@ -28,7 +28,7 @@ pub struct LocUrl {
     loc: String,
 }
 
-pub fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
+pub async fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
     let site = site + "/sitemap.xml";
 
     let ua = common::user_agent::random_user_agent();
@@ -36,31 +36,28 @@ pub fn sitemap(site: String) -> Result<HashSet<String>, Box<dyn std::error::Erro
     let mut headers = HeaderMap::new();
     headers.insert(USER_AGENT, ua.parse().unwrap());
 
-    let rsp = reqwest::blocking::Client::new()
+    let rsp = reqwest::Client::new()
         .get(site)
         .timeout(time::Duration::from_secs(5))
         .headers(headers)
-        .send();
+        .send()
+        .await?;
 
-    if let Ok(r) = rsp {
-        if r.status() == reqwest::StatusCode::OK {
-            let txt = r.text()?;
-            let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
-            let values = sitemap.values();
-            let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
-
-            let client = reqwest::blocking::Client::new();
-            values.iter().for_each(|v| {
-                loc_set.extend(
-                    parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default(),
-                )
-            });
-
-            return Ok(loc_set);
-        }
+    if rsp.status() != reqwest::StatusCode::OK {
+        return Ok(Default::default());
     }
 
-    Ok(Default::default())
+    let txt = rsp.text().await?;
+    let sitemap: Sitemap = serde_xml_rs::from_str(&txt)?;
+    let values = sitemap.values();
+    let mut loc_set: HashSet<String> = HashSet::with_capacity(values.len());
+
+    let client = reqwest::blocking::Client::new();
+    values.iter().for_each(|v| {
+        loc_set.extend(parse_sitemap(v.to_string(), ua.clone(), client.clone()).unwrap_or_default())
+    });
+
+    Ok(loc_set)
 }
 
 fn parse_sitemap(
@@ -93,10 +90,16 @@ mod tests {
     use crate::handler::sitemap::parse_sitemap;
     use crate::handler::sitemap::sitemap;
 
-    #[test]
-    fn sitemap_test() {
+    #[tokio::test]
+    async fn sitemap_test() {
         common::load("user_agent", "files/user_agent.toml");
-        assert_ne!(sitemap("https://google.com".to_string()).unwrap().len(), 0)
+        assert_ne!(
+            sitemap("https://google.com".to_string())
+                .await
+                .unwrap()
+                .len(),
+            0
+        )
     }
 
     #[test]
