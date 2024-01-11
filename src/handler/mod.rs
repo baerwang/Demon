@@ -1,3 +1,4 @@
+pub mod collect;
 pub mod crawler;
 pub mod duplicate;
 pub mod form;

@@ -1,6 +1,4 @@
 use std::sync::Arc;
-use std::thread::sleep;
-use std::time::Duration;
 
 use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
@@ -12,6 +10,7 @@ use headless_chrome::protocol::cdp::Runtime::{AddBinding, Evaluate};
 use headless_chrome::{Browser, Tab};
 use tokio::sync::mpsc;
 
+use crate::handler::collect::collect;
 use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::{JS_CODE, TAB_INIT};
 use crate::{common, model};
@@ -48,9 +47,9 @@ pub fn tasks(
         download_path: None,
     })?;
     tab.navigate_to(url)?;
+    tab.wait_until_navigated()?;
     let tab_clone = Arc::clone(&tab);
     event_listener(&tab, tab_clone, tx)?;
-    sleep(Duration::from_secs(1));
     let result = tab.call_method(evaluate())?;
     if let Some(result_value) = result.result.value {
         let list: Vec<Html> =
@@ -63,6 +62,7 @@ pub fn tasks(
             }
         }
     }
+    collect(&tab);
     _ = tab.close(true);
 
     Ok(())
