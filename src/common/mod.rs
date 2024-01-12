@@ -5,6 +5,7 @@ use toml::Value;
 pub mod constant;
 pub mod form;
 pub mod user_agent;
+pub mod util;
 
 pub fn load(key: &str, file: &str) {
     let buf = std::env::current_dir().unwrap().join(file);

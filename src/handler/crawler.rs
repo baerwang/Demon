@@ -6,10 +6,11 @@ use headless_chrome::protocol::cdp::Page::{
     AddScriptToEvaluateOnNewDocument, HandleJavaScriptDialog, SetDownloadBehavior,
     SetDownloadBehaviorBehaviorOption,
 };
-use headless_chrome::protocol::cdp::Runtime::{AddBinding, Evaluate};
+use headless_chrome::protocol::cdp::Runtime::AddBinding;
 use headless_chrome::{Browser, Tab};
 use tokio::sync::mpsc;
 
+use crate::common::util;
 use crate::handler::collect::collect;
 use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::{JS_CODE, TAB_INIT};
@@ -50,7 +51,7 @@ pub fn tasks(
     tab.wait_until_navigated()?;
     let tab_clone = Arc::clone(&tab);
     event_listener(&tab, tab_clone, tx)?;
-    let result = tab.call_method(evaluate())?;
+    let result = tab.call_method(util::evaluate(JS_CODE))?;
     if let Some(result_value) = result.result.value {
         let list: Vec<Html> =
             serde_json::from_str(&result_value.to_string()).expect("Failed to parse JSON");
@@ -105,26 +106,6 @@ fn event_listener(
         _ => (),
     }))?;
     Ok(())
-}
-
-fn evaluate() -> Evaluate {
-    Evaluate {
-        expression: JS_CODE.to_string(),
-        return_by_value: Some(true),
-        generate_preview: Some(true),
-        silent: Some(false),
-        await_promise: None,
-        include_command_line_api: Some(false),
-        user_gesture: Some(false),
-        object_group: None,
-        context_id: None,
-        throw_on_side_effect: None,
-        timeout: None,
-        disable_breaks: None,
-        repl_mode: None,
-        allow_unsafe_eval_blocked_by_csp: None,
-        unique_context_id: None,
-    }
 }
 
 fn add_binding(name: &str) -> AddBinding {

@@ -1,86 +1,54 @@
 use std::collections::HashSet;
+use std::error::Error;
 use std::sync::Arc;
 
 use headless_chrome::Tab;
 
-const CONTENT_TYPE: [&str; 14] = [
-    "application/x-www-form-urlencoded",
-    "text/plain",
-    "text/html",
-    "application/xml",
-    "text/xml",
-    "application/json",
-    "text/javascript",
-    "multipart/form-data",
-    "application/octet-stream",
-    "text/css",
-    "image/x-icon",
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-];
-const HREF_ATTRIBUTES: [&str; 4] = ["src", "href", "data-url", "data-href"];
+use crate::common::util;
+
+const JS_HREF: &str = r#"
+     const HREF_ATTRIBUTES = ["src", "href", "data-url", "data-href", "type", "pluginspage"];
+     const CONTENT_TYPE = ["application/x-www-form-urlencoded", "text/plain", "text/html",
+     "application/xml", "text/xml", "application/json", "text/javascript", "multipart/form-data", 
+     "application/octet-stream", "text/css", "image/x-icon", "image/jpeg", "image/png", "image/gif"];
+     let list = [];
+     for (const href of HREF_ATTRIBUTES) {
+         const result = document.querySelectorAll(`[${href}]`);
+         for (const e of result) {
+             const value = e.getAttribute(`${href}`);
+             if (value) {
+                 if (CONTENT_TYPE.some(t => value.startsWith(t))) {
+                     continue;
+                 }
+                 list.push(value);
+             }
+         }
+     }
+     list
+    "#;
+
+const JS_OBJECT: &str = r#"
+    const result = document.querySelectorAll('object[data]');
+    let list = [];
+    for (const e of result) {
+        const value = e.getAttribute('data');
+        if (value !== null) {
+            list.push(value);
+        }
+    }
+    list
+    "#;
 
 pub fn collect(tab: &Arc<Tab>) {
-    _ = href(tab);
-    _ = object(tab);
+    _ = query_selector_all(tab, JS_HREF);
+    _ = query_selector_all(tab, JS_OBJECT);
 }
 
-fn href(tab: &Arc<Tab>) -> Result<(), Box<dyn std::error::Error>> {
-    let node_id = tab.get_document()?.node_id;
-    let mut set: HashSet<String> = HashSet::new();
-
-    for href in HREF_ATTRIBUTES {
-        let result = tab.run_query_selector_all_on_node(node_id, format!("[{}]", href).as_str())?;
-
-        for e in result {
-            if let Some(attributes) = e.attributes {
-                for (index, attribute) in attributes.iter().enumerate().filter(|(i, _)| i % 2 == 0)
-                {
-                    let name = attribute.as_str();
-                    let value = attributes
-                        .get(index + 1)
-                        .map_or("", |v| v.as_str())
-                        .to_string();
-
-                    if name == "type" && CONTENT_TYPE.iter().any(|t| value.starts_with(t)) {
-                        continue;
-                    }
-
-                    if name == "pluginspage" || name == href {
-                        set.insert(value);
-                    }
-                }
-            }
-        }
+fn query_selector_all(tab: &Arc<Tab>, v: &str) -> Result<HashSet<String>, Box<dyn Error>> {
+    let result = tab.call_method(util::evaluate(v))?;
+    if let Some(result_value) = result.result.value {
+        return serde_json::from_str::<HashSet<String>>(&result_value.to_string())
+            .map_err(|e| Box::new(e) as Box<dyn Error>);
     }
-
-    log::info!("{:?}", set);
-
-    Ok(())
-}
-
-fn object(tab: &Arc<Tab>) -> Result<(), Box<dyn std::error::Error>> {
-    let node_id = tab.get_document()?.node_id;
-    let mut set: HashSet<String> = HashSet::new();
-
-    let result = tab.run_query_selector_all_on_node(node_id, "object[data]")?;
-    for e in result {
-        if let Some(attributes) = e.attributes {
-            for (index, attribute) in attributes.iter().enumerate().filter(|(i, _)| i % 2 == 0) {
-                let name = attribute.as_str();
-                let value = attributes
-                    .get(index + 1)
-                    .map_or("", |v| v.as_str())
-                    .to_string();
-                if name == "data" {
-                    set.insert(value);
-                }
-            }
-        }
-    }
-
-    log::info!("{:?}", set);
-
-    Ok(())
+    Ok(HashSet::new())
 }
