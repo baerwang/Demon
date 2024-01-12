@@ -3,6 +3,7 @@ use std::fs;
 use toml::Value;
 
 pub mod constant;
+pub mod filter;
 pub mod form;
 pub mod user_agent;
 pub mod util;

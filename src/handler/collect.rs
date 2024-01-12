@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
 
+use crate::common::filter::matching_filter;
 use headless_chrome::Tab;
 
 use crate::common::util;
@@ -47,8 +48,12 @@ pub fn collect(tab: &Arc<Tab>) {
 fn query_selector_all(tab: &Arc<Tab>, v: &str) -> Result<HashSet<String>, Box<dyn Error>> {
     let result = tab.call_method(util::evaluate(v))?;
     if let Some(result_value) = result.result.value {
-        return serde_json::from_str::<HashSet<String>>(&result_value.to_string())
-            .map_err(|e| Box::new(e) as Box<dyn Error>);
+        return Ok(
+            serde_json::from_str::<HashSet<String>>(&result_value.to_string())?
+                .into_iter()
+                .filter(|s| matching_filter(s))
+                .collect(),
+        );
     }
     Ok(HashSet::new())
 }
