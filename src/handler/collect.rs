@@ -57,25 +57,22 @@ fn query_selector_all(
             serde_json::from_str::<HashSet<String>>(&result_value.to_string())?
                 .into_iter()
                 .filter(|s| matching_filter(s))
-                .map(|v| parse_url(&state.domain, v))
+                .map(|v| parse_url(state.domain.to_string(), v))
                 .collect(),
         );
     }
     Ok(HashSet::new())
 }
 
-fn parse_url(root: &String, child: String) -> String {
-    match child {
-        _ if child.starts_with("http://") || child.starts_with("https://") => child,
-        _ => {
-            if child.contains("../") {
-                let mut tmp = child.replace("../", "");
-                if !tmp.starts_with('/') {
-                    tmp = format!("_{}", tmp);
-                }
-                return tmp;
-            }
-            format!("{}/{}", root, child)
+fn parse_url(root: String, child: String) -> String {
+    if child.starts_with("http://") || child.starts_with("https://") {
+        child
+    } else {
+        let tmp = child.replace("../", "");
+        if !tmp.starts_with('/') {
+            format!("{}/{}", root, tmp)
+        } else {
+            format!("{}{}", root, tmp)
         }
     }
 }
