@@ -2,9 +2,10 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
 
-use crate::common::filter::matching_filter;
 use headless_chrome::Tab;
 
+use crate::channel;
+use crate::common::filter::matching_filter;
 use crate::common::util;
 
 const JS_HREF: &str = r#"
@@ -40,20 +41,41 @@ const JS_OBJECT: &str = r#"
     list
     "#;
 
-pub fn collect(tab: &Arc<Tab>) {
-    _ = query_selector_all(tab, JS_HREF);
-    _ = query_selector_all(tab, JS_OBJECT);
+pub fn collect(state: &channel::GlobalState, tab: &Arc<Tab>) {
+    _ = query_selector_all(state, tab, JS_HREF);
+    _ = query_selector_all(state, tab, JS_OBJECT);
 }
 
-fn query_selector_all(tab: &Arc<Tab>, v: &str) -> Result<HashSet<String>, Box<dyn Error>> {
+fn query_selector_all(
+    state: &channel::GlobalState,
+    tab: &Arc<Tab>,
+    v: &str,
+) -> Result<HashSet<String>, Box<dyn Error>> {
     let result = tab.call_method(util::evaluate(v))?;
     if let Some(result_value) = result.result.value {
         return Ok(
             serde_json::from_str::<HashSet<String>>(&result_value.to_string())?
                 .into_iter()
                 .filter(|s| matching_filter(s))
+                .map(|v| parse_url(&state.domain, v))
                 .collect(),
         );
     }
     Ok(HashSet::new())
+}
+
+fn parse_url(root: &String, child: String) -> String {
+    match child {
+        _ if child.starts_with("http://") || child.starts_with("https://") => child,
+        _ => {
+            if child.contains("../") {
+                let mut tmp = child.replace("../", "");
+                if !tmp.starts_with('/') {
+                    tmp = format!("_{}", tmp);
+                }
+                return tmp;
+            }
+            format!("{}/{}", root, child)
+        }
+    }
 }

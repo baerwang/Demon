@@ -13,7 +13,7 @@ use crate::cli::args;
 use crate::handler::crawler;
 use crate::handler::robots::robots;
 use crate::handler::sitemap::sitemap;
-use crate::{common, handler, model};
+use crate::{channel, common, handler, model};
 
 pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
     let app = args::CLi::parse();
@@ -115,9 +115,15 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
 
             let set: DashSet<String> = DashSet::new();
             let browser = Browser::new(launch_options)?;
+            let state = channel::GlobalState::new(
+                tx.clone(),
+                Arc::new(app.target[0].clone()).clone().to_string(),
+                browser,
+                config,
+            );
             while let Some(url) = rx.recv().await {
                 if set.insert(url.clone()) {
-                    _ = crawler::tasks(url.clone().as_str(), tx.clone(), browser.clone(), &config);
+                    _ = crawler::tasks(url.clone().as_str(), tx.clone(), &state);
                 } else {
                     println!("Value {} already exists", url.clone());
                 }

@@ -7,26 +7,25 @@ use headless_chrome::protocol::cdp::Page::{
     SetDownloadBehaviorBehaviorOption,
 };
 use headless_chrome::protocol::cdp::Runtime::AddBinding;
-use headless_chrome::{Browser, Tab};
+use headless_chrome::Tab;
 use tokio::sync::mpsc;
 
 use crate::common::util;
 use crate::handler::collect::collect;
 use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::{JS_CODE, TAB_INIT};
-use crate::{common, model};
+use crate::{channel, common};
 
 pub fn tasks(
     url: &str,
     tx: mpsc::Sender<String>,
-    browser: Browser,
-    config: &model::task::TaskConfig,
+    state: &channel::GlobalState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let random_ug = common::user_agent::random_user_agent();
-    let tab = browser.new_tab()?;
+    let tab = state.browser.new_tab()?;
     tab.enable_runtime()?;
     tab.enable_fetch(None, Some(true))?;
-    tab.authenticate(config.username.clone(), config.password.clone())?;
+    tab.authenticate(state.config.username.clone(), state.config.password.clone())?;
     tab.set_user_agent(random_ug.as_str(), None, None).unwrap();
     tab.call_method(add_binding("addLink"))?;
     tab.call_method(add_binding("Test"))?;
@@ -36,7 +35,8 @@ pub fn tasks(
         include_command_line_api: None,
     })?;
     tab.set_extra_http_headers(
-        config
+        state
+            .config
             .headers
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
@@ -63,7 +63,7 @@ pub fn tasks(
             }
         }
     }
-    collect(&tab);
+    collect(state, &tab);
     _ = tab.close(true);
 
     Ok(())
