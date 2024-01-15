@@ -41,27 +41,28 @@ const JS_OBJECT: &str = r#"
     list
     "#;
 
-pub fn collect(state: &channel::GlobalState, tab: &Arc<Tab>) {
-    _ = query_selector_all(state, tab, JS_HREF);
-    _ = query_selector_all(state, tab, JS_OBJECT);
+pub async fn collect(state: &mut channel::GlobalState, tab: &Arc<Tab>) {
+    _ = query_selector_all(state, tab, JS_HREF).await;
+    _ = query_selector_all(state, tab, JS_OBJECT).await;
 }
 
-fn query_selector_all(
-    state: &channel::GlobalState,
+async fn query_selector_all(
+    state: &mut channel::GlobalState,
     tab: &Arc<Tab>,
     v: &str,
-) -> Result<HashSet<String>, Box<dyn Error>> {
+) -> Result<(), Box<dyn Error>> {
     let result = tab.call_method(util::evaluate(v))?;
     if let Some(result_value) = result.result.value {
-        return Ok(
-            serde_json::from_str::<HashSet<String>>(&result_value.to_string())?
-                .into_iter()
-                .filter(|s| matching_filter(s))
-                .map(|v| parse_url(state.domain.to_string(), v))
-                .collect(),
-        );
+        let set = serde_json::from_str::<HashSet<String>>(&result_value.to_string())?;
+        for s in &set {
+            if matching_filter(s) && state.store.insert(s.clone()) {
+                state
+                    .send_message(parse_url(state.domain.to_string(), s.to_string()).as_str())
+                    .await
+            }
+        }
     }
-    Ok(HashSet::new())
+    Ok(())
 }
 
 fn parse_url(root: String, child: String) -> String {

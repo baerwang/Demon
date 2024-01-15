@@ -42,7 +42,7 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
         repeat: duplicate_factory,
     };
 
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("INFO"));
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or(app.log_level));
 
     common::load("user_agent", "files/user_agent.toml");
     common::load("form", "files/form.toml");
@@ -115,7 +115,7 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
 
             let set: DashSet<String> = DashSet::new();
             let browser = Browser::new(launch_options)?;
-            let state = channel::GlobalState::new(
+            let mut state = channel::GlobalState::new(
                 tx.clone(),
                 Arc::new(app.target[0].clone()).clone().to_string(),
                 browser,
@@ -123,9 +123,7 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
             );
             while let Some(url) = rx.recv().await {
                 if set.insert(url.clone()) {
-                    _ = crawler::tasks(url.clone().as_str(), tx.clone(), &state);
-                } else {
-                    println!("Value {} already exists", url.clone());
+                    _ = crawler::tasks(url.clone().as_str(), tx.clone(), &mut state).await;
                 }
             }
 

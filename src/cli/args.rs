@@ -25,6 +25,9 @@ pub struct CLi {
     /// Authenticate password
     #[arg(short, long)]
     pub password: Option<String>,
+    /// DEBUG ERROR WARN
+    #[arg(short, long, default_value = "INFO", action = Set)]
+    pub log_level: String,
     #[command(subcommand)]
     pub opt: Option<Opt>,
 }

@@ -16,10 +16,10 @@ use crate::handler::form::{Html, FORM};
 use crate::handler::form_js::{JS_CODE, TAB_INIT};
 use crate::{channel, common};
 
-pub fn tasks(
+pub async fn tasks(
     url: &str,
     tx: mpsc::Sender<String>,
-    state: &channel::GlobalState,
+    state: &mut channel::GlobalState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let random_ug = common::user_agent::random_user_agent();
     let tab = state.browser.new_tab()?;
@@ -50,7 +50,8 @@ pub fn tasks(
     tab.navigate_to(url)?;
     tab.wait_until_navigated()?;
     let tab_clone = Arc::clone(&tab);
-    event_listener(&tab, tab_clone, tx)?;
+    event_listener(&tab, tab_clone, tx).await?;
+    collect(state, &tab).await;
     let result = tab.call_method(util::evaluate(JS_CODE))?;
     if let Some(result_value) = result.result.value {
         let list: Vec<Html> =
@@ -63,13 +64,12 @@ pub fn tasks(
             }
         }
     }
-    collect(state, &tab);
     _ = tab.close(true);
 
     Ok(())
 }
 
-fn event_listener(
+async fn event_listener(
     tab: &Arc<Tab>,
     tab_clone: Arc<Tab>,
     tx: mpsc::Sender<String>,
