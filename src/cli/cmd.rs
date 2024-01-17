@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::Parser;
-use dashmap::DashSet;
 use headless_chrome::browser::default_executable;
 use headless_chrome::{browser, Browser, LaunchOptions};
 use tokio::sync::mpsc;
@@ -38,8 +37,6 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
         username: app.username,
         password: app.password,
         robots: app.robots,
-        range: scan_factory,
-        repeat: duplicate_factory,
     };
 
     env_logger::init_from_env(env_logger::Env::new().default_filter_or(app.log_level));
@@ -113,16 +110,17 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
 
             // drop(tx);
 
-            let set: DashSet<String> = DashSet::new();
             let browser = Browser::new(launch_options)?;
             let mut state = channel::GlobalState::new(
                 tx.clone(),
                 Arc::new(app.target[0].clone()).clone().to_string(),
                 browser,
+                scan_factory,
+                duplicate_factory,
                 config,
             );
             while let Some(url) = rx.recv().await {
-                if set.insert(url.clone()) {
+                if state.store.insert(url.clone()) {
                     _ = crawler::tasks(url.clone().as_str(), tx.clone(), &mut state).await;
                 }
             }

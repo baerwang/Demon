@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use headless_chrome::protocol::cdp::Network::Request;
 use regex::Regex;
 
 pub fn factory(r: &str, url: url::Url, sub_domain: Option<Vec<String>>) -> Box<dyn ScanPolicy> {
@@ -22,7 +21,7 @@ pub fn factory(r: &str, url: url::Url, sub_domain: Option<Vec<String>>) -> Box<d
 }
 
 pub trait ScanPolicy {
-    fn handle(&self, req: Request) -> bool;
+    fn handle(&self, _: &str) -> bool;
 }
 
 struct Current {
@@ -30,8 +29,8 @@ struct Current {
 }
 
 impl ScanPolicy for Current {
-    fn handle(&self, req: Request) -> bool {
-        let v = url::Url::from_str(req.url.as_str()).unwrap();
+    fn handle(&self, u: &str) -> bool {
+        let v = url::Url::from_str(u).unwrap();
         v.host().unwrap().to_string() == self.host
     }
 }
@@ -41,8 +40,8 @@ struct All {
 }
 
 impl ScanPolicy for All {
-    fn handle(&self, req: Request) -> bool {
-        let v = url::Url::from_str(req.url.as_str()).unwrap();
+    fn handle(&self, u: &str) -> bool {
+        let v = url::Url::from_str(u).unwrap();
         self.regex.is_match(v.host_str().unwrap())
     }
 }
@@ -52,9 +51,9 @@ struct SubDomain {
 }
 
 impl ScanPolicy for SubDomain {
-    fn handle(&self, req: Request) -> bool {
+    fn handle(&self, u: &str) -> bool {
         if let Some(items) = &self.sub_domain {
-            let v = url::Url::from_str(req.url.as_str()).unwrap();
+            let v = url::Url::from_str(u).unwrap();
             let host = v.host_str().unwrap_or_default();
             for domain in items {
                 if host == domain {
@@ -72,8 +71,8 @@ struct NotSubDomain {
 }
 
 impl ScanPolicy for NotSubDomain {
-    fn handle(&self, req: Request) -> bool {
-        let v = url::Url::from_str(req.url.as_str()).unwrap();
+    fn handle(&self, u: &str) -> bool {
+        let v = url::Url::from_str(u).unwrap();
         let host = v.host_str().unwrap_or_default();
         if !self.regex.is_match(host) {
             return false;
@@ -96,8 +95,8 @@ struct Directory {
 }
 
 impl ScanPolicy for Directory {
-    fn handle(&self, req: Request) -> bool {
-        if let Ok(v) = url::Url::from_str(&req.url) {
+    fn handle(&self, u: &str) -> bool {
+        if let Ok(v) = url::Url::from_str(u) {
             if v.path().is_empty() {
                 return false;
             }

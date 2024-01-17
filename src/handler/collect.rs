@@ -55,10 +55,12 @@ async fn query_selector_all(
     if let Some(result_value) = result.result.value {
         let set = serde_json::from_str::<HashSet<String>>(&result_value.to_string())?;
         for s in &set {
-            if matching_filter(s) && state.store.insert(s.clone()) {
-                state
-                    .send_message(parse_url(state.domain.to_string(), s.to_string()).as_str())
-                    .await
+            let parse = parse_url(state.domain.to_string(), s.to_string());
+            if state.scan.handle(&parse)
+                && matching_filter(&parse)
+                && state.store.insert(parse.to_string())
+            {
+                state.send_message(&parse).await
             }
         }
     }
