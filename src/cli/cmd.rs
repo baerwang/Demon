@@ -120,11 +120,10 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 config,
             );
             while let Some(url) = rx.recv().await {
-                if state.store.insert(url.clone()) {
+                if state.rx_store.insert(url.clone()) {
                     _ = crawler::tasks(url.clone().as_str(), tx.clone(), &mut state).await;
                 }
             }
-
             Ok(())
         }
     }

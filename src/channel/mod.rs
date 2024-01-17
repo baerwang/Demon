@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use headless_chrome::protocol::cdp::Network::{Request, Response};
 use headless_chrome::Browser;
 use tokio::sync::mpsc::Sender;
 
@@ -14,6 +15,7 @@ pub struct GlobalState {
     pub scan: Box<dyn ScanPolicy>,
     pub repeat: Box<dyn Duplicate>,
     pub store: HashSet<String>,
+    pub rx_store: HashSet<String>,
 
     pub sender: Option<Sender<String>>,
 }
@@ -31,10 +33,11 @@ impl GlobalState {
             domain,
             browser,
             config,
-            store: HashSet::new(),
-            sender: Some(tx),
             scan,
             repeat,
+            store: HashSet::new(),
+            rx_store: HashSet::new(),
+            sender: Some(tx),
         }
     }
 
@@ -43,6 +46,40 @@ impl GlobalState {
             if sender.send(message.to_owned()).await.is_err() {
                 log::error!("Failed to send URL through channel");
             }
+        }
+    }
+
+    pub async fn send_req(&mut self, req: Request) {
+        let handle = self.repeat.handle(req.clone());
+        if self.rx_store.insert(handle) {
+            self.send_message(req.url.as_str()).await
+        }
+    }
+
+    pub async fn send_rsp(&mut self, rsp: Response) {
+        if self.rx_store.insert(rsp.url.clone()) {
+            self.send_message(rsp.url.as_str()).await
+        }
+    }
+
+    pub fn send_block_message(&self, message: &str) {
+        if let Some(ref sender) = self.sender {
+            if sender.blocking_send(message.to_owned()).is_err() {
+                log::error!("Failed to send URL through channel");
+            }
+        }
+    }
+
+    pub fn send_block_req(&mut self, req: Request) {
+        let handle = self.repeat.handle(req.clone());
+        if self.rx_store.insert(handle) {
+            self.send_block_message(req.url.as_str())
+        }
+    }
+
+    pub fn send_block_rsp(&mut self, rsp: Response) {
+        if self.rx_store.insert(rsp.url.clone()) {
+            self.send_block_message(rsp.url.as_str())
         }
     }
 }
