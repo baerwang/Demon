@@ -3,7 +3,7 @@ description = "Demon is a powerful browser crawler for web vulnerability scanner
 name = "demon"
 version = "0.1.0"
 edition = "2021"
-license = "Apache-2.0"
+license = "GPL-3.0"
 repository = "https://github.com/baerwang/Demon"
 publish = false
 
