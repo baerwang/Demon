@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
+use crossbeam::channel::Sender;
 use headless_chrome::protocol::cdp::Network::{Request, Response};
 use headless_chrome::Browser;
-use tokio::sync::mpsc::Sender;
 
 use crate::handler::duplicate::Duplicate;
 use crate::handler::scan_policy::ScanPolicy;
@@ -17,7 +17,7 @@ pub struct GlobalState {
     pub store: HashSet<String>,
     pub rx_store: HashSet<String>,
 
-    pub sender: Option<Sender<String>>,
+    pub sender: Sender<String>,
 }
 
 impl GlobalState {
@@ -37,16 +37,12 @@ impl GlobalState {
             repeat,
             store: HashSet::new(),
             rx_store: HashSet::new(),
-            sender: Some(tx),
+            sender: tx,
         }
     }
 
     pub async fn send_message(&self, message: &str) {
-        if let Some(ref sender) = self.sender {
-            if sender.send(message.to_owned()).await.is_err() {
-                log::error!("Failed to send URL through channel");
-            }
-        }
+        scope(self.sender.clone(), message.to_string())
     }
 
     pub async fn send_req(&mut self, req: Request) {
@@ -61,25 +57,14 @@ impl GlobalState {
             self.send_message(rsp.url.as_str()).await
         }
     }
+}
 
-    pub fn send_block_message(&self, message: &str) {
-        if let Some(ref sender) = self.sender {
-            if sender.blocking_send(message.to_owned()).is_err() {
+pub fn scope(tx: Sender<String>, msg: String) {
+    _ = crossbeam::scope(|s| {
+        s.spawn(|_| {
+            if tx.send(msg).is_err() {
                 log::error!("Failed to send URL through channel");
             }
-        }
-    }
-
-    pub fn send_block_req(&mut self, req: Request) {
-        let handle = self.repeat.handle(req.clone());
-        if self.rx_store.insert(handle) {
-            self.send_block_message(req.url.as_str())
-        }
-    }
-
-    pub fn send_block_rsp(&mut self, rsp: Response) {
-        if self.rx_store.insert(rsp.url.clone()) {
-            self.send_block_message(rsp.url.as_str())
-        }
-    }
+        });
+    });
 }

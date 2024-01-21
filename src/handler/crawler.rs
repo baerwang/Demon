@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crossbeam::channel::Sender;
 use headless_chrome::protocol::cdp::types::Event;
 use headless_chrome::protocol::cdp::Network::ResourceType;
 use headless_chrome::protocol::cdp::Page::{
@@ -8,7 +9,6 @@ use headless_chrome::protocol::cdp::Page::{
 };
 use headless_chrome::protocol::cdp::Runtime::AddBinding;
 use headless_chrome::Tab;
-use tokio::sync::mpsc;
 
 use crate::common::util;
 use crate::handler::collect::collect;
@@ -18,7 +18,7 @@ use crate::{channel, common};
 
 pub async fn tasks(
     url: &str,
-    tx: mpsc::Sender<String>,
+    tx: Sender<String>,
     state: &mut channel::GlobalState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let random_ug = common::user_agent::random_user_agent();
@@ -72,7 +72,7 @@ pub async fn tasks(
 async fn event_listener(
     tab: &Arc<Tab>,
     tab_clone: Arc<Tab>,
-    tx: mpsc::Sender<String>,
+    tx: Sender<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     tab.add_event_listener(Arc::new(move |event: &Event| match event {
         Event::PageWindowOpen(_) => _ = tab_clone.close_target().unwrap(),
@@ -88,7 +88,7 @@ async fn event_listener(
         Event::PageDomContentEventFired(_) => log::info!("dom content event fired"),
         Event::NetworkRequestWillBeSent(e) => match e.params.Type {
             Some(ResourceType::Document) | Some(ResourceType::Xhr) => {
-                if tx.blocking_send(e.clone().params.request.url).is_err() {
+                if tx.send(e.clone().params.request.url).is_err() {
                     log::error!("Failed to send URL through channel");
                 }
             }
@@ -96,7 +96,7 @@ async fn event_listener(
         },
         Event::NetworkResponseReceived(e) => match e.params.Type {
             ResourceType::Document | ResourceType::Xhr => {
-                if tx.blocking_send(e.clone().params.response.url).is_err() {
+                if tx.send(e.clone().params.response.url).is_err() {
                     log::error!("Failed to send URL through channel");
                 }
             }

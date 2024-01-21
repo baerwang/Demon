@@ -4,10 +4,12 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::Parser;
+use crossbeam::channel::unbounded;
+use crossbeam::channel::Sender;
 use headless_chrome::browser::default_executable;
 use headless_chrome::{browser, Browser, LaunchOptions};
-use tokio::sync::mpsc;
 
+use crate::channel::scope;
 use crate::cli::args;
 use crate::handler::crawler;
 use crate::handler::robots::robots;
@@ -78,34 +80,23 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 .args(args)
                 .build()?;
 
-            let (tx, mut rx) = mpsc::channel::<String>(app.thread);
+            let (tx, rcv) = unbounded();
             for url in app.target.clone() {
-                let tx = tx.clone();
-                tokio::spawn(async move {
-                    if tx.send(url).await.is_err() {
-                        log::error!("Failed to send URL through channel");
-                    }
-                });
+                scope(tx.clone(), url)
             }
 
             if app.robots {
                 let root = Arc::new(app.target[0].clone());
 
-                let robot_tx = tx.clone();
                 let robot_clone = Arc::clone(&root);
-                tokio::spawn(async move {
-                    if let Ok(t) = robots(robot_clone.to_string()).await {
-                        gather(t, robot_tx)
-                    }
-                });
+                if let Ok(t) = robots(robot_clone.to_string()).await {
+                    gather(t, tx.clone())
+                }
 
-                let sitemap_tx = tx.clone();
                 let sitemap_clone = Arc::clone(&root);
-                tokio::spawn(async move {
-                    if let Ok(t) = sitemap(sitemap_clone.to_string()).await {
-                        gather(t, sitemap_tx)
-                    }
-                });
+                if let Ok(t) = sitemap(sitemap_clone.to_string()).await {
+                    gather(t, tx.clone())
+                }
             }
 
             // drop(tx);
@@ -119,7 +110,8 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
                 duplicate_factory,
                 config,
             );
-            while let Some(url) = rx.recv().await {
+
+            for url in rcv.iter() {
                 if state.rx_store.insert(url.clone()) {
                     _ = crawler::tasks(url.clone().as_str(), tx.clone(), &mut state).await;
                 }
@@ -129,13 +121,8 @@ pub async fn cli() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn gather(t: HashSet<String>, tx: mpsc::Sender<String>) {
+fn gather(t: HashSet<String>, tx: Sender<String>) {
     for url in t {
-        let tx = tx.clone();
-        tokio::spawn(async move {
-            if tx.send(url).await.is_err() {
-                log::error!("Failed to send URL through channel");
-            }
-        });
+        scope(tx.clone(), url)
     }
 }
