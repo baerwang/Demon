@@ -51,7 +51,7 @@ pub async fn tasks(
     tab.wait_until_navigated()?;
     let tab_clone = Arc::clone(&tab);
     event_listener(&tab, tab_clone, tx).await?;
-    collect(state, &tab).await;
+    collect(state, &tab);
     let result = tab.call_method(util::evaluate(JS_CODE))?;
     if let Some(result_value) = result.result.value {
         let list: Vec<Html> =

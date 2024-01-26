@@ -41,20 +41,20 @@ impl GlobalState {
         }
     }
 
-    pub async fn send_message(&self, message: &str) {
+    pub fn send_message(&self, message: &str) {
         scope(self.sender.clone(), message.to_string())
     }
 
-    pub async fn send_req(&mut self, req: Request) {
+    pub fn send_req(&mut self, req: Request) {
         let handle = self.repeat.handle(req.clone());
         if self.rx_store.insert(handle) {
-            self.send_message(req.url.as_str()).await
+            self.send_message(req.url.as_str())
         }
     }
 
-    pub async fn send_rsp(&mut self, rsp: Response) {
+    pub fn send_rsp(&mut self, rsp: Response) {
         if self.rx_store.insert(rsp.url.clone()) {
-            self.send_message(rsp.url.as_str()).await
+            self.send_message(rsp.url.as_str())
         }
     }
 }

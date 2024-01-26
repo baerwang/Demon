@@ -41,12 +41,12 @@ const JS_OBJECT: &str = r#"
     list
     "#;
 
-pub async fn collect(state: &mut channel::GlobalState, tab: &Arc<Tab>) {
-    _ = query_selector_all(state, tab, JS_HREF).await;
-    _ = query_selector_all(state, tab, JS_OBJECT).await;
+pub fn collect(state: &mut channel::GlobalState, tab: &Arc<Tab>) {
+    _ = query_selector_all(state, tab, JS_HREF);
+    _ = query_selector_all(state, tab, JS_OBJECT);
 }
 
-async fn query_selector_all(
+fn query_selector_all(
     state: &mut channel::GlobalState,
     tab: &Arc<Tab>,
     v: &str,
@@ -60,7 +60,7 @@ async fn query_selector_all(
                 && matching_filter(&parse)
                 && state.store.insert(parse.to_string())
             {
-                state.send_message(&parse).await
+                state.send_message(&parse)
             }
         }
     }
