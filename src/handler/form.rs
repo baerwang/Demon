@@ -51,29 +51,29 @@ fn text(tab: Arc<Tab>, h: Html) {
 }
 
 fn textarea(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     _ = tab
         .send_character(format!("{} {}", random_password(), random_pin_yin()).as_str())
         .unwrap();
 }
 
 fn password(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     _ = tab.send_character(random_password().as_str()).unwrap();
 }
 
 fn email(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     _ = tab.send_character(random_email().as_str())
 }
 
 fn tel(tab: Arc<Tab>, h: Html) {
-    tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     _ = tab.send_character(random_phone().as_str())
 }
 
 fn date(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap();
+    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     _ = tab.send_character(random_date().as_str())
 }
 
