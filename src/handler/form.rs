@@ -29,13 +29,13 @@ static FROM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
 
 pub fn filter(tab: Arc<Tab>, h: Html) {
     if let Some(func) = FROM.get(h.el_type.as_str()) {
-        _ = match tab.find_element_by_xpath(h.xpath.as_str()) {
+        match tab.find_element_by_xpath(h.xpath.as_str()) {
             Ok(v) => {
                 _ = v.click();
                 func(tab.clone(), h);
             }
             Err(err) => log::warn!("{}", err),
-        };
+        }
     } else {
         log::warn!("not el type: {}", h.el_type);
     }
