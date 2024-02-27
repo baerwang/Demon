@@ -10,7 +10,8 @@ use crate::common::util;
 
 const JS_HREF: &str = r#"
      const HREF_ATTRIBUTES = ["src", "href", "data-url", "data-href", "type", "pluginspage"];
-     const CONTENT_TYPE = ["application/x-www-form-urlencoded", "text/plain", "text/html",
+     const CONTENT_TYPE = ["application/x-www-form-urlencoded", "application/x-shockwave-flash", 
+     "text/plain", "text/html", "text", "submit","text/JavaScript",
      "application/xml", "text/xml", "application/json", "text/javascript", "multipart/form-data", 
      "application/octet-stream", "text/css", "image/x-icon", "image/jpeg", "image/png", "image/gif"];
      let list = [];
