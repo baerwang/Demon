@@ -12,7 +12,7 @@ use headless_chrome::Tab;
 
 use crate::common::util;
 use crate::handler::collect::collect;
-use crate::handler::form::{Html, FORM};
+use crate::handler::form::{filter, Html};
 use crate::handler::form_js::{JS_CODE, TAB_INIT};
 use crate::{channel, common};
 
@@ -57,11 +57,7 @@ pub async fn tasks(
         let list: Vec<Html> =
             serde_json::from_str(&result_value.to_string()).expect("Failed to parse JSON");
         for item in list {
-            if let Some(func) = FORM.get(item.el_type.as_str()) {
-                func(tab.clone(), item);
-            } else {
-                log::warn!("not el type: {}", item.el_type);
-            }
+            filter(tab.clone(), item);
         }
     }
     _ = tab.close(true);

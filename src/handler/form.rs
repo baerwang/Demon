@@ -11,7 +11,7 @@ use crate::common::form::{
 
 type HtmlFn = fn(Arc<Tab>, Html);
 
-pub static FORM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
+static FROM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
     let mut map: HashMap<&str, HtmlFn> = HashMap::new();
     map.insert("text", text);
     map.insert("textarea", textarea);
@@ -19,13 +19,27 @@ pub static FORM: Lazy<HashMap<&str, HtmlFn>> = Lazy::new(|| {
     map.insert("email", email);
     map.insert("tel", tel);
     map.insert("date", date);
-    map.insert("radio", radio);
-    map.insert("checkbox", checkbox);
+    map.insert("radio", general);
+    map.insert("checkbox", general);
     map.insert("select-one", select_one);
-    map.insert("submit", submit);
-    map.insert("button", button);
+    map.insert("submit", general);
+    map.insert("button", general);
     map
 });
+
+pub fn filter(tab: Arc<Tab>, h: Html) {
+    if let Some(func) = FROM.get(h.el_type.as_str()) {
+        _ = match tab.find_element_by_xpath(h.xpath.as_str()) {
+            Ok(v) => {
+                _ = v.click();
+                func(tab.clone(), h);
+            }
+            Err(err) => log::warn!("{}", err),
+        };
+    } else {
+        log::warn!("not el type: {}", h.el_type);
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Html {
@@ -39,8 +53,9 @@ pub struct Html {
     pub xpath: String,
 }
 
+fn general(_: Arc<Tab>, _: Html) {}
+
 fn text(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
     if !h.readonly.is_empty() {
         _ = tab.press_key("ArrowDown").unwrap().press_key("Enter");
         return;
@@ -50,39 +65,26 @@ fn text(tab: Arc<Tab>, h: Html) {
         .unwrap();
 }
 
-fn textarea(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+fn textarea(tab: Arc<Tab>, _: Html) {
     _ = tab
         .send_character(format!("{} {}", random_password(), random_pin_yin()).as_str())
         .unwrap();
 }
 
-fn password(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+fn password(tab: Arc<Tab>, _: Html) {
     _ = tab.send_character(random_password().as_str()).unwrap();
 }
 
-fn email(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+fn email(tab: Arc<Tab>, _: Html) {
     _ = tab.send_character(random_email().as_str())
 }
 
-fn tel(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+fn tel(tab: Arc<Tab>, _: Html) {
     _ = tab.send_character(random_phone().as_str())
 }
 
-fn date(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
+fn date(tab: Arc<Tab>, _: Html) {
     _ = tab.send_character(random_date().as_str())
-}
-
-fn radio(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
-}
-
-fn checkbox(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
 }
 
 fn select_one(tab: Arc<Tab>, h: Html) {
@@ -93,12 +95,4 @@ fn select_one(tab: Arc<Tab>, h: Html) {
         .focus()
         .unwrap();
     tab.press_key("ArrowDown").unwrap();
-}
-
-fn submit(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
-}
-
-fn button(tab: Arc<Tab>, h: Html) {
-    _ = tab.find_element_by_xpath(h.xpath.as_str()).unwrap().click();
 }
